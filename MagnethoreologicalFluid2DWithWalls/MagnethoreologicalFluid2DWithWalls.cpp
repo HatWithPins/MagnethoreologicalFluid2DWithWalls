@@ -10,7 +10,7 @@ int main()
 {
 	auto start = high_resolution_clock::now();
 	int particles = 400;
-	int boxLenght = 44;
+	int boxLength = 44;
 	double mason[14] = { 0.001 ,0.003, 0.004, 0.006, 0.009, 0.01, 0.04, 0.08, 0.1, 0.4, 0.6, 0.8, 1.0, 2.0 };
 	double times[14] = { 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 1000, 1000, 1000, 1000 };
 	int numbers = 14;
