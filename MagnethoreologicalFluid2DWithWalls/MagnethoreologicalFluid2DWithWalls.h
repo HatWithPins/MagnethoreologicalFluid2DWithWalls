@@ -22,5 +22,3 @@
 #include "box.h"
 #include "analysis.h"
 #include "dynamics.h"
-
-// TODO: Reference additional headers your program requires here.
