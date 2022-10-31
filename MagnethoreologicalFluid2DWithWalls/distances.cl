@@ -15,10 +15,10 @@ __kernel void distances (global const double* X_0, global const double* Y_0, glo
 	distances[2] = (sqrt(pown(X_0[particle_1] - X_0[particle_0] - (*length),2) + pown(Y_0[particle_1] - Y_0[particle_0],2)));
 	int index = 0;
 			for(int j = 0; j < 9; j++) {
-				if(distances[index] > distances[j]){ index = j;}
+				if (distances[index] > distances[j]){ index = j; }
 			}
 
-			r = distances[index];
+	r = distances[index];
 
-			valid[idx] = (r >= r_min);
+	if (r < r_min){ *valid = 0; }
 }
