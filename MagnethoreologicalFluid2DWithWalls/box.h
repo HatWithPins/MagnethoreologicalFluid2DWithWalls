@@ -47,8 +47,8 @@ public:
 		InitialPositions();
 	}
 
-	void WritePositions(int iteration, double mason, int repetition, std::string disturbed, double amplitude = 0.0) {
-		std::ofstream file{ "positions/positions-" + std::to_string(mason) + "-" + std::to_string(amplitude) + "-" + std::to_string(repetition) + "-" + std::to_string(iteration) + "-" + disturbed + ".csv" };
+	void WritePositions(int iteration, double mason, double amplitude_relationship, int repetition, std::string tag) {
+		std::ofstream file{ "positions/positions-" + std::to_string(mason) + "-" + std::to_string(amplitude_relationship) + "-" + std::to_string(repetition) + "-" + std::to_string(iteration) + "-" + tag + ".csv" };
 
 		file << "x,y\n";
 

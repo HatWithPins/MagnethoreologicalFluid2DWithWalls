@@ -16,9 +16,9 @@ __kernel void sum (
 		int index_sub = particle_0 - 1;
 
 		top_separation = (*length) - y_0[particle_0];
-		double top_repulsion = -A * exp(-B * (top_separation - 1)));
+		double top_repulsion = -A * exp(-B * (top_separation - 1));
 		bottom_separation = y_0[particle_0];
-		double bottom_repulsion = A * exp(-B * (bottom_separation - 1)));
+		double bottom_repulsion = A * exp(-B * (bottom_separation - 1));
 
 		x_1[particle_0] = 0;
 		y_1[particle_0] = top_repulsion + bottom_repulsion;
@@ -48,5 +48,5 @@ __kernel void sum (
 		y_1[particle_0] += y_0[particle_0];
 
 		remainder_x = x_1[particle_0]/(*length);
-		x_1[particle_0] = x_1[particle_0] - remainder_x*(*length) + (*length)*(x_1[particle_0] < 0)
+		x_1[particle_0] = x_1[particle_0] - remainder_x*(*length) + (*length)*(x_1[particle_0] < 0);
 }
