@@ -6,7 +6,7 @@ __kernel void validation (
 	global const double* mason, global const double* amplitude_relationship
 ) {
 	int particle_0 = get_global_id(0);
-	if (valid) {
+	if (*valid == 1) {
 		x_0[particle_0] = x_1[particle_0];
 		y_0[particle_0] = y_1[particle_0];
 

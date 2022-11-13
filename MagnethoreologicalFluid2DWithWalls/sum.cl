@@ -15,9 +15,9 @@ __kernel void sum (
 		int last_index_sum = last_indices_sum[particle_0];
 		int index_sub = particle_0 - 1;
 
-		top_separation = (*length) - y_0[particle_0];
+		top_separation = (*length) - y_0[particle_0] + 0.5;
 		double top_repulsion = -A * exp(-B * (top_separation - 1));
-		bottom_separation = y_0[particle_0];
+		bottom_separation = y_0[particle_0] + 0.5;
 		double bottom_repulsion = A * exp(-B * (bottom_separation - 1));
 
 		x_1[particle_0] = 0;

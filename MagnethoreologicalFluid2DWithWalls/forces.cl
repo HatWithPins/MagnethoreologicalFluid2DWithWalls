@@ -12,14 +12,14 @@ __kernel void forces (
 		double dot_product;
 		double distances[3];
 		int idx = get_global_id(0);
-		int particle_0 = particle_0_array[idx];
-		int particle_1 = particle_1_array[idx];
+		int particle_0 = particle_1_array[idx];
+		int particle_1 = particle_0_array[idx];
 
 		distances[0] = (sqrt(pown(x_0[particle_1] - x_0[particle_0],2) + pown(y_0[particle_1] - y_0[particle_0],2)));
 		distances[1] = (sqrt(pown(x_0[particle_1] - x_0[particle_0] + (*length),2) + pown(y_0[particle_1] - y_0[particle_0],2)));
 		distances[2] = (sqrt(pown(x_0[particle_1] - x_0[particle_0] - (*length),2) + pown(y_0[particle_1] - y_0[particle_0],2)));
 		int index = 0;
-		for(int j = 0; j < 9; j++) {
+		for(int j = 0; j < 3; j++) {
 			if (distances[index] > distances[j]){ index = j; }
 		}
 		x = (*length)*((index == 1) - (index == 2)) + x_0[particle_1] - x_0[particle_0];

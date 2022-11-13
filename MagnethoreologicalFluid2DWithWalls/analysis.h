@@ -8,11 +8,15 @@ private:
 	int window_;
 	double epsilon_ = 0.1;
 	double micro_structure_separation = 1.1;
-	double macro_structure_separation = 1.5;
-	std::vector<std::vector<int>> chains;
-	std::vector<std::vector<int>> sizes;
-	std::vector<std::vector<double>> linearities;
-	std::vector<std::vector<double>> means;
+	double macro_structure_separation = 2.0;
+	std::vector<std::vector<int>> micro_chains;
+	std::vector<std::vector<int>> micro_sizes;
+	std::vector<std::vector<double>> micro_linearities;
+	std::vector<std::vector<double>> micro_means;
+	std::vector<std::vector<int>> macro_chains;
+	std::vector<std::vector<int>> macro_sizes;
+	std::vector<std::vector<double>> macro_linearities;
+	std::vector<std::vector<double>> macro_means;
 	std::vector<std::vector<double>> first_moving_average;
 	std::vector<std::vector<double>> second_moving_average;
 	std::vector<double> times;
@@ -28,7 +32,7 @@ private:
 				distances[1] = (sqrt(pow(x[j] - x[i] + (length_), 2) + pow(y[j] - y[i], 2)));
 				distances[2] = (sqrt(pow(x[j] - x[i] - (length_), 2) + pow(y[j] - y[i], 2)));
 				int index = 0;
-				for (int k = 0; k < 9; k++) {
+				for (int k = 0; k < 3; k++) {
 					if (distances[index] > distances[k]) { index = k; }
 				}
 
@@ -149,13 +153,13 @@ private:
 		average[5] = 0;
 
 
-		na = chains[index].size();
+		na = micro_chains[index].size();
 
 		for (int j = 0; j < na; j++) {
-			if (sizes[index][j] > 1) {
+			if (micro_sizes[index][j] > 1) {
 				average_na++;
-				average_size += sizes[index][j];
-				average_linearity += linearities[index][j];
+				average_size += micro_sizes[index][j];
+				average_linearity += micro_linearities[index][j];
 			}
 		}
 
@@ -164,10 +168,10 @@ private:
 		average[4] = average_linearity / average_na;
 
 		for (int j = 0; j < na; j++) {
-			if (sizes[index][j] > 1) {
+			if (micro_sizes[index][j] > 1) {
 				sigma_na++;
-				sigma_size += (sizes[index][j] - average_size) * (sizes[index][j] - average_size);
-				sigma_linearity += (linearities[index][j] - average_linearity) * (linearities[index][j] - average_linearity);
+				sigma_size += (micro_sizes[index][j] - average_size) * (micro_sizes[index][j] - average_size);
+				sigma_linearity += (micro_linearities[index][j] - average_linearity) * (micro_linearities[index][j] - average_linearity);
 			}
 		}
 
@@ -175,39 +179,110 @@ private:
 		average[3] = sqrt(sigma_size / particles_);
 		average[5] = sqrt(sigma_linearity / particles_);
 
-		means.push_back(average);
+		micro_means.push_back(average);
+
+		//Macro structures averages
+		average_na = 0;
+		sigma_na = 0;
+		average_size = 0;
+		sigma_size = 0;
+		average_linearity = 0;
+		sigma_linearity = 0;
+
+		average[1] = 0;
+		average[2] = 0;
+		average[5] = 0;
+
+
+		na = macro_chains[index].size();
+
+		for (int j = 0; j < na; j++) {
+			if (macro_sizes[index][j] > 1) {
+				average_na++;
+				average_size += macro_sizes[index][j];
+				average_linearity += macro_linearities[index][j];
+			}
+		}
+
+		average[0] = average_na;
+		average[2] = average_size / average_na;
+		average[4] = average_linearity / average_na;
+
+		for (int j = 0; j < na; j++) {
+			if (macro_sizes[index][j] > 1) {
+				sigma_na++;
+				sigma_size += (macro_sizes[index][j] - average_size) * (macro_sizes[index][j] - average_size);
+				sigma_linearity += (macro_linearities[index][j] - average_linearity) * (macro_linearities[index][j] - average_linearity);
+			}
+		}
+
+		average[1] = 0;
+		average[3] = sqrt(sigma_size / particles_);
+		average[5] = sqrt(sigma_linearity / particles_);
+
+		macro_means.push_back(average);
 	}
 
 	bool EndSimulation() {
-		double n = 0;
-		double average_na = 0;
-		double sigma_na = 0;
-		double average_size = 0;
-		double sigma_size = 0;
-		double average_linearity = 0;
-		double sigma_linearity = 0;
+		double micro_n = 0;
+		double micro_average_na = 0;
+		double micro_sigma_na = 0;
+		double micro_average_size = 0;
+		double micro_sigma_size = 0;
+		double micro_average_linearity = 0;
+		double micro_sigma_linearity = 0;
 
 		for (int i = iteration_ - window_; i < iteration_ - 1; i++) {
-			n += means[i][0];
-			average_size += means[i][2] * means[i][0];
-			average_linearity += means[i][4] * means[i][0];
+			micro_n += micro_means[i][0];
+			micro_average_size += micro_means[i][2] * micro_means[i][0];
+			micro_average_linearity += micro_means[i][4] * micro_means[i][0];
 		}
 
-		average_size = average_size / n;
-		average_linearity = average_linearity / n;
-		average_na = n / iteration_;
+		micro_average_size = micro_average_size / micro_n;
+		micro_average_linearity = micro_average_linearity / micro_n;
+		micro_average_na = micro_n / iteration_;
 
 		for (int i = iteration_ - window_; i < iteration_ - 1; i++) {
-			sigma_na += (means[i][0] - average_na) * (means[i][0] - average_na);
-			sigma_size += (means[i][2] - average_size) * (means[i][2] - average_size);
-			sigma_linearity += (means[i][4] - average_linearity) * (means[i][4] - average_linearity);
+			micro_sigma_na += (micro_means[i][0] - micro_average_na) * (micro_means[i][0] - micro_average_na);
+			micro_sigma_size += (micro_means[i][2] - micro_average_size) * (micro_means[i][2] - micro_average_size);
+			micro_sigma_linearity += (micro_means[i][4] - micro_average_linearity) * (micro_means[i][4] - micro_average_linearity);
 		}
 
-		sigma_na = sqrt(sigma_na / n);
-		sigma_size = sqrt(sigma_size / n);
-		sigma_linearity = sqrt(sigma_linearity / n);
+		micro_sigma_na = sqrt(micro_sigma_na / micro_n);
+		micro_sigma_size = sqrt(micro_sigma_size / micro_n);
+		micro_sigma_linearity = sqrt(micro_sigma_linearity / micro_n);
 
-		return (sigma_na / average_na <= epsilon_) * (sigma_size / average_size <= epsilon_) * (sigma_linearity / average_linearity <= epsilon_);
+		//Macro structures.
+		double macro_n = 0;
+		double macro_average_na = 0;
+		double macro_sigma_na = 0;
+		double macro_average_size = 0;
+		double macro_sigma_size = 0;
+		double macro_average_linearity = 0;
+		double macro_sigma_linearity = 0;
+
+		for (int i = iteration_ - window_; i < iteration_ - 1; i++) {
+			macro_n += macro_means[i][0];
+			macro_average_size += macro_means[i][2] * macro_means[i][0];
+			macro_average_linearity += macro_means[i][4] * macro_means[i][0];
+		}
+
+		macro_average_size = macro_average_size / macro_n;
+		macro_average_linearity = macro_average_linearity / macro_n;
+		macro_average_na = macro_n / iteration_;
+
+		for (int i = iteration_ - window_; i < iteration_ - 1; i++) {
+			macro_sigma_na += (macro_means[i][0] - macro_average_na) * (macro_means[i][0] - macro_average_na);
+			macro_sigma_size += (macro_means[i][2] - macro_average_size) * (macro_means[i][2] - macro_average_size);
+			macro_sigma_linearity += (macro_means[i][4] - macro_average_linearity) * (macro_means[i][4] - macro_average_linearity);
+		}
+
+		macro_sigma_na = sqrt(macro_sigma_na / macro_n);
+		macro_sigma_size = sqrt(macro_sigma_size / macro_n);
+		macro_sigma_linearity = sqrt(macro_sigma_linearity / macro_n);
+
+		return (micro_sigma_na / micro_average_na <= epsilon_) * (micro_sigma_size / micro_average_size <= epsilon_) * (micro_sigma_linearity / micro_average_linearity <= epsilon_)*
+			(macro_sigma_na / macro_average_na <= epsilon_) * (macro_sigma_size / macro_average_size <= epsilon_) * (macro_sigma_linearity / macro_average_linearity <= epsilon_);
 	}
 
 public:
@@ -215,6 +290,7 @@ public:
 	Analysis(double mason, double amplitude_relationship, int particles, int length, int window) {
 		mason_ = mason;
 		amplitude_relationship_ = amplitude_relationship;
+		particles_ = particles;
 		length_ = length;
 		window_ = window;
 		iteration_ = 0;
@@ -222,31 +298,56 @@ public:
 
 	bool PreAnalysis(double* x, double* y, double time) {
 		iteration_++;
-		int* adjacency = new int[particles_ * particles_];
-		adjacency = Adjacency(x, y, micro_structure_separation);
+		int* micro_adjacency = new int[particles_ * particles_];
+		micro_adjacency = Adjacency(x, y, micro_structure_separation);
 
-		std::vector<int> chain = BFS(adjacency);
+		std::vector<int> micro_chain = BFS(micro_adjacency);
 
-		std::vector<int> unique(chain.size());
+		std::vector<int> micro_unique(micro_chain.size());
 		std::vector<int>::iterator it;
 
-		it = std::unique_copy(chain.begin(), chain.end(), unique.begin());
-		std::sort(unique.begin(), it);
-		it = std::unique_copy(unique.begin(), it, unique.begin());
-		unique.resize(std::distance(unique.begin(), it));
+		it = std::unique_copy(micro_chain.begin(), micro_chain.end(), micro_unique.begin());
+		std::sort(micro_unique.begin(), it);
+		it = std::unique_copy(micro_unique.begin(), it, micro_unique.begin());
+		micro_unique.resize(std::distance(micro_unique.begin(), it));
 
-		std::vector<int> length(unique.size());
+		std::vector<int> micro_length(micro_unique.size());
 
-		for (size_t i = 0; i < length.size(); ++i) {
-			length[i] = std::count(chain.begin(), chain.end(), unique[i]);
+		for (size_t i = 0; i < micro_length.size(); ++i) {
+			micro_length[i] = std::count(micro_chain.begin(), micro_chain.end(), micro_unique[i]);
 		}
 
-		std::vector<double> linearity;
-		sizes.push_back(length);
+		std::vector<double> micro_linearity;
+		micro_sizes.push_back(micro_length);
 
-		linearity = Linearity(x, y, chain, unique, length);
-		linearities.push_back(linearity);
-		chains.push_back(unique);
+		micro_linearity = Linearity(x, y, micro_chain, micro_unique, micro_length);
+		micro_linearities.push_back(micro_linearity);
+		micro_chains.push_back(micro_unique);
+
+		int* macro_adjacency = new int[particles_ * particles_];
+		macro_adjacency = Adjacency(x, y, macro_structure_separation);
+
+		std::vector<int> macro_chain = BFS(macro_adjacency);
+
+		std::vector<int> macro_unique(macro_chain.size());
+
+		it = std::unique_copy(macro_chain.begin(), macro_chain.end(), macro_unique.begin());
+		std::sort(macro_unique.begin(), it);
+		it = std::unique_copy(macro_unique.begin(), it, macro_unique.begin());
+		macro_unique.resize(std::distance(macro_unique.begin(), it));
+
+		std::vector<int> macro_length(macro_unique.size());
+
+		for (size_t i = 0; i < macro_length.size(); ++i) {
+			macro_length[i] = std::count(macro_chain.begin(), macro_chain.end(), macro_unique[i]);
+		}
+
+		std::vector<double> macro_linearity;
+		macro_sizes.push_back(macro_length);
+
+		macro_linearity = Linearity(x, y, macro_chain, macro_unique, macro_length);
+		macro_linearities.push_back(macro_linearity);
+		macro_chains.push_back(macro_unique);
 
 		times.push_back(time);
 		Averages();
@@ -257,46 +358,90 @@ public:
 	}
 
 	void WriteAnalysis(int repetition, std::string tag) {
-		std::ofstream analysis_file{ "analysis/analysis-" + std::to_string(mason_) + "-" + std::to_string(amplitude_relationship_) + "-" + std::to_string(repetition) + "-" + tag + ".csv" };
+		std::ofstream micro_analysis_file{ "analysis/micro_analysis-" + std::to_string(mason_) + "-" + std::to_string(amplitude_relationship_) + "-" + std::to_string(repetition) + "-" + tag + ".csv" };
 
-		analysis_file << "mason,amplitude,N,Na,sigma_Na,size,sigma_size,linearity,sigma_linearity\n";
+		micro_analysis_file << "mason,amplitude,N,Na,sigma_Na,size,sigma_size,linearity,sigma_linearity\n";
+
+		std::ofstream macro_analysis_file{ "analysis/macro_analysis-" + std::to_string(mason_) + "-" + std::to_string(amplitude_relationship_) + "-" + std::to_string(repetition) + "-" + tag + ".csv" };
+
+		macro_analysis_file << "mason,amplitude,N,Na,sigma_Na,size,sigma_size,linearity,sigma_linearity\n";
 
 		std::ofstream times_file{ "analysis/times-" + std::to_string(mason_) + "-" + std::to_string(amplitude_relationship_) + "-" + std::to_string(repetition) + "-" + tag + ".csv" };
 
-		times_file << "t,Na,size,linearity\n";
+		times_file << "t,micro_Na,micro_size,micro_linearity,macro_Na,macro_size,macro_linearity\n";
 
-		double n = 0;
-		double average_na = 0;
-		double sigma_na = 0;
-		double average_size = 0;
-		double sigma_size = 0;
-		double average_linearity = 0;
-		double sigma_linearity = 0;
+		double micro_n = 0;
+		double micro_average_na = 0;
+		double micro_sigma_na = 0;
+		double micro_average_size = 0;
+		double micro_sigma_size = 0;
+		double micro_average_linearity = 0;
+		double micro_sigma_linearity = 0;
 
-		for (int i = iteration_ - window_; i < iteration_ - 1; i++) {
-			n += means[i][0];
-			average_size += means[i][2] * means[i][0];
-			average_linearity += means[i][4] * means[i][0];
-			times_file << times[i] << "," << means[i][0] << "," << means[i][2] << "," << means[i][4] << "\n";
+		for (int i = iteration_; i < iteration_; i++) {
+			micro_n += micro_means[i][0];
+			micro_average_size += micro_means[i][2] * micro_means[i][0];
+			micro_average_linearity += micro_means[i][4] * micro_means[i][0];
 		}
 
-		average_size = average_size / n;
-		average_linearity = average_linearity / n;
-		average_na = n / iteration_;
+		micro_average_size = micro_average_size / micro_n;
+		micro_average_linearity = micro_average_linearity / micro_n;
+		micro_average_na = micro_n / iteration_;
 
-		for (int i = iteration_ - window_; i < iteration_ - 1; i++) {
-			sigma_na += (means[i][0] - average_na) * (means[i][0] - average_na);
-			sigma_size += (means[i][2] - average_size) * (means[i][2] - average_size);
-			sigma_linearity += (means[i][4] - average_linearity) * (means[i][4] - average_linearity);
+		for (int i = iteration_; i < iteration_; i++) {
+			micro_sigma_na += (micro_means[i][0] - micro_average_na) * (micro_means[i][0] - micro_average_na);
+			micro_sigma_size += (micro_means[i][2] - micro_average_size) * (micro_means[i][2] - micro_average_size);
+			micro_sigma_linearity += (micro_means[i][4] - micro_average_linearity) * (micro_means[i][4] - micro_average_linearity);
 		}
 
-		sigma_na = sqrt(sigma_na / n);
-		sigma_size = sqrt(sigma_size / n);
-		sigma_linearity = sqrt(sigma_linearity / n);
+		micro_sigma_na = sqrt(micro_sigma_na / micro_n);
+		micro_sigma_size = sqrt(micro_sigma_size / micro_n);
+		micro_sigma_linearity = sqrt(micro_sigma_linearity / micro_n);
 
-		analysis_file << mason_ << "," << amplitude_relationship_ << "," << n << "," << average_na << "," << sigma_na << "," << average_size << "," << sigma_size << "," << average_linearity << "," << sigma_linearity << "\n";
+		//Macro structures.
+		double macro_n = 0;
+		double macro_average_na = 0;
+		double macro_sigma_na = 0;
+		double macro_average_size = 0;
+		double macro_sigma_size = 0;
+		double macro_average_linearity = 0;
+		double macro_sigma_linearity = 0;
+
+		for (int i = iteration_; i < iteration_; i++) {
+			macro_n += macro_means[i][0];
+			macro_average_size += macro_means[i][2] * macro_means[i][0];
+			macro_average_linearity += macro_means[i][4] * macro_means[i][0];
+		}
+
+		macro_average_size = macro_average_size / macro_n;
+		macro_average_linearity = macro_average_linearity / macro_n;
+		macro_average_na = macro_n / iteration_;
+
+		for (int i = iteration_; i < iteration_; i++) {
+			macro_sigma_na += (macro_means[i][0] - macro_average_na) * (macro_means[i][0] - macro_average_na);
+			macro_sigma_size += (macro_means[i][2] - macro_average_size) * (macro_means[i][2] - macro_average_size);
+			macro_sigma_linearity += (macro_means[i][4] - macro_average_linearity) * (macro_means[i][4] - macro_average_linearity);
+		}
+
+		macro_sigma_na = sqrt(macro_sigma_na / macro_n);
+		macro_sigma_size = sqrt(macro_sigma_size / macro_n);
+		macro_sigma_linearity = sqrt(macro_sigma_linearity / macro_n);
+
+		for (int i = 0; i < iteration_; i++) {
+			times_file << times[i] << "," << micro_means[i][0] << "," << micro_means[i][2] << "," << micro_means[i][4] << "," 
+				<< macro_means[i][0] << "," << macro_means[i][2] << "," << macro_means[i][4] << "\n";
+		}
+
+		micro_analysis_file << mason_ << "," << amplitude_relationship_ << "," << micro_n << "," 
+			<< micro_average_na << "," << micro_sigma_na << "," << micro_average_size << "," << micro_sigma_size << "," << micro_average_linearity << "," << micro_sigma_linearity 
+			<< "\n";
+
+		macro_analysis_file << mason_ << "," << amplitude_relationship_ << "," << macro_n << ","
+			<< macro_average_na << "," << macro_sigma_na << "," << macro_average_size << "," << macro_sigma_size << "," << macro_average_linearity << "," << macro_sigma_linearity
+			<< "\n";
 
 		times_file.close();
-		analysis_file.close();
+		micro_analysis_file.close();
+		macro_analysis_file.close();
 	}
 };

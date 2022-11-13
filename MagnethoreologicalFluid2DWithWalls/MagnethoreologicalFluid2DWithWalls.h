@@ -4,7 +4,6 @@
 #pragma once
 
 #include <iostream>
-#include <iostream>
 #include <vector>
 #include <algorithm>
 #include <memory>
@@ -16,7 +15,6 @@
 #include <sstream>
 #include <math.h>
 #include <CL/cl.hpp>
-#include <chrono>
 #include <thread>
 #include <cmath>
 #include "box.h"

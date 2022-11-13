@@ -1,9 +1,13 @@
-void Simulation(int particles, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition) {
+using namespace std::chrono;
+void Simulation(int particles, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_time) {
+	auto start = high_resolution_clock::now();
 	std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + " and Mason = " + std::to_string(mason) + "\n";
 
-	double magnetic_field[2] = { 0.0, 1.0 };
+	double magnetic_field[2] = { 0.0, 1.0 }; 
 	double delta_t = original_delta_t;
 	double pi = 3.14159265359;
+	double step = 2 * pi / (mason * 360);
+	int laps = ceil(max_time * mason / (2 * pi));
 	double time = 0.0;
 	int lap = 0;
 	int current_lap = 0;
@@ -34,7 +38,7 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 	}
 
 	int index = 0;
-	for (int i = 0; i < particles; i++) {
+	for (int i = 0; i < particles - 1; i++) {
 		for (int j = i + 1; j < particles; j++) {
 			particle_0[index] = i;
 			particle_1[index] = j;
@@ -54,7 +58,7 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 	std::vector<cl::Platform> all_platforms;
 	cl::Platform::get(&all_platforms);
 	if (all_platforms.size() == 0) {
-		std::cout << " No se encontró ninguna plataforma. Comprueba la instalación de OpenCL.\n";
+		std::cout << " No platform found. Check OpenCL installation.\n";
 		exit(1);
 	}
 	cl::Platform platform = all_platforms[0];
@@ -88,6 +92,7 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 	cl::Buffer buffer_amplitude_relationship = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(double));
 	cl::Buffer buffer_x_1 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_y_1 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
+	cl::Buffer buffer_r_array = cl::Buffer(context, CL_MEM_READ_WRITE, matrix_size * sizeof(double));
 
 	std::ifstream sum_file("sum.cl");
 	std::string sum_code(std::istreambuf_iterator<char>(sum_file), (std::istreambuf_iterator<char>()));
@@ -202,23 +207,16 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 	queue.enqueueWriteBuffer(buffer_particle_1, CL_TRUE, 0, matrix_size * sizeof(int), particle_1);
 	queue.enqueueWriteBuffer(buffer_initial_indices_sum, CL_TRUE, 0, particles * sizeof(int), initial_indices_sum);
 	queue.enqueueWriteBuffer(buffer_last_indices_sum, CL_TRUE, 0, particles * sizeof(int), last_indices_sum);
-	queue.enqueueWriteBuffer(buffer_x_0, CL_TRUE, 0, matrix_size * sizeof(double), x_0);
-	queue.enqueueWriteBuffer(buffer_y_0, CL_TRUE, 0, matrix_size * sizeof(double), y_0);
+	queue.enqueueWriteBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
+	queue.enqueueWriteBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
 
 	while (!end_simulation) {
 		queue.enqueueNDRangeKernel(forces_kernel, cl::NullRange, global_long, cl::NullRange);
-		queue.enqueueNDRangeKernel(sum_kernel, cl::NullRange, global_long, cl::NullRange);
+		queue.enqueueNDRangeKernel(sum_kernel, cl::NullRange, global_short, cl::NullRange);
 		queue.enqueueNDRangeKernel(distances_kernel, cl::NullRange, global_long, cl::NullRange);
 		queue.enqueueNDRangeKernel(validation_kernel, cl::NullRange, global_short, cl::NullRange);
-
-		queue.enqueueReadBuffer(buffer_valid, CL_TRUE, 0, sizeof(int), &valid);
-		if (valid) {
-			time += delta_t;
-			delta_t = original_delta_t;
-		}
-		else {
-			delta_t = delta_t / 2;
-		}
+	
+		queue.enqueueReadBuffer(buffer_time, CL_TRUE, 0, sizeof(double), &time);
 
 		current_lap = floor(time * mason / (2 * pi));
 		if (current_lap > lap) {
@@ -226,13 +224,17 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 			lap = current_lap;
 			queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
 			queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
-			box.SetX(x_0);
-			box.SetY(y_0);
 			if (repetition == 0) {
+				box.SetX(x_0);
+				box.SetY(y_0);
 				box.WritePositions(counter, mason, amplitude_relationship, repetition, "");
 			}
-			end_simulation = analysis.PreAnalysis(x_0, y_0, time);
+			end_simulation = analysis.PreAnalysis(x_0, y_0, time) || (current_lap > laps);
 		}
 	}
 	analysis.WriteAnalysis(repetition, "");
+
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<seconds>(stop - start);
+	std::cout << "Finishing simulation for thread " << repetition << ". Took " << duration.count() << " seconds." << "\n";
 }
