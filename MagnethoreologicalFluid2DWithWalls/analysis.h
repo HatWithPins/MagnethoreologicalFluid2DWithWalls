@@ -378,7 +378,7 @@ public:
 		double micro_average_linearity = 0;
 		double micro_sigma_linearity = 0;
 
-		for (int i = iteration_; i < iteration_; i++) {
+		for (int i = 0; i < iteration_; i++) {
 			micro_n += micro_means[i][0];
 			micro_average_size += micro_means[i][2] * micro_means[i][0];
 			micro_average_linearity += micro_means[i][4] * micro_means[i][0];
@@ -388,7 +388,7 @@ public:
 		micro_average_linearity = micro_average_linearity / micro_n;
 		micro_average_na = micro_n / iteration_;
 
-		for (int i = iteration_; i < iteration_; i++) {
+		for (int i = 0; i < iteration_; i++) {
 			micro_sigma_na += (micro_means[i][0] - micro_average_na) * (micro_means[i][0] - micro_average_na);
 			micro_sigma_size += (micro_means[i][2] - micro_average_size) * (micro_means[i][2] - micro_average_size);
 			micro_sigma_linearity += (micro_means[i][4] - micro_average_linearity) * (micro_means[i][4] - micro_average_linearity);
@@ -407,7 +407,7 @@ public:
 		double macro_average_linearity = 0;
 		double macro_sigma_linearity = 0;
 
-		for (int i = iteration_; i < iteration_; i++) {
+		for (int i = 0; i < iteration_; i++) {
 			macro_n += macro_means[i][0];
 			macro_average_size += macro_means[i][2] * macro_means[i][0];
 			macro_average_linearity += macro_means[i][4] * macro_means[i][0];
@@ -417,7 +417,7 @@ public:
 		macro_average_linearity = macro_average_linearity / macro_n;
 		macro_average_na = macro_n / iteration_;
 
-		for (int i = iteration_; i < iteration_; i++) {
+		for (int i = 0; i < iteration_; i++) {
 			macro_sigma_na += (macro_means[i][0] - macro_average_na) * (macro_means[i][0] - macro_average_na);
 			macro_sigma_size += (macro_means[i][2] - macro_average_size) * (macro_means[i][2] - macro_average_size);
 			macro_sigma_linearity += (macro_means[i][4] - macro_average_linearity) * (macro_means[i][4] - macro_average_linearity);

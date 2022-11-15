@@ -16,13 +16,14 @@ int main()
 	int repetitions = 5;
 	double delta_t = 0.001;
 
-	std::thread threads[5];
+	std::thread threads[10];
 	for (int i = 0; i < 14; i++) {
-		for (int j = 0; j < 14; j++) {
+		for (int j = 0; j < 7; j++) {
 			for (int k = 0; k < repetitions; k++) {
-				threads[k] = std::thread(Simulation, particles, box_length, numbers[i], numbers[j], delta_t, k, times[i]);
+				threads[2*k] = std::thread(Simulation, particles, box_length, numbers[i], numbers[2*j], delta_t, k, times[i]);
+				threads[2*k+1] = std::thread(Simulation, particles, box_length, numbers[i], numbers[2*j+1], delta_t, k, times[i]);
 			}
-			for (int k = 0; k < repetitions; k++) {
+			for (int k = 0; k < 2*repetitions; k++) {
 				threads[k].join();
 			}
 		}

@@ -7,6 +7,7 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 	double delta_t = original_delta_t;
 	double pi = 3.14159265359;
 	double step = 2 * pi / (mason * 360);
+	double stretch = 0;
 	int laps = ceil(max_time * mason / (2 * pi));
 	double time = 0.0;
 	int lap = 0;
@@ -229,8 +230,31 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 				box.SetY(y_0);
 				box.WritePositions(counter, mason, amplitude_relationship, repetition, "");
 			}
-			end_simulation = analysis.PreAnalysis(x_0, y_0, time) || (current_lap > laps);
+			end_simulation = analysis.PreAnalysis(x_0, y_0, time) || (current_lap >= laps);
 		}
+		else if (current_lap == laps - 1) {
+			queue.enqueueReadBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
+			stretch += delta_t;
+
+			if (stretch > step) {
+				counter++;
+				queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
+				queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
+				if (repetition == 0) {
+					box.SetX(x_0);
+					box.SetY(y_0);
+					box.WritePositions(counter, mason, amplitude_relationship, repetition, "");
+				}
+				end_simulation = analysis.PreAnalysis(x_0, y_0, time);
+				stretch = 0;
+			}
+		}
+	}
+
+	if (repetition == 0) {
+		box.SetX(x_0);
+		box.SetY(y_0);
+		box.WritePositions(counter, mason, amplitude_relationship, repetition, "");
 	}
 	analysis.WriteAnalysis(repetition, "");
 
