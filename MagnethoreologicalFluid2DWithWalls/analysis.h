@@ -17,8 +17,6 @@ private:
 	std::vector<std::vector<int>> macro_sizes;
 	std::vector<std::vector<double>> macro_linearities;
 	std::vector<std::vector<double>> macro_means;
-	std::vector<std::vector<double>> first_moving_average;
-	std::vector<std::vector<double>> second_moving_average;
 	std::vector<double> times;
 
 	int* Adjacency(double* x, double* y, double max_separation) {
@@ -295,11 +293,20 @@ public:
 		window_ = window;
 		iteration_ = 0;
 	}
+	~Analysis() {
+		micro_chains.~vector();
+		micro_linearities.~vector();
+		micro_means.~vector();
+		micro_sizes.~vector();
+		macro_chains.~vector();
+		macro_linearities.~vector();
+		macro_means.~vector();
+		macro_sizes.~vector();
+	}
 
 	bool PreAnalysis(double* x, double* y, double time) {
 		iteration_++;
-		int* micro_adjacency = new int[particles_ * particles_];
-		micro_adjacency = Adjacency(x, y, micro_structure_separation);
+		int* micro_adjacency = Adjacency(x, y, micro_structure_separation);
 
 		std::vector<int> micro_chain = BFS(micro_adjacency);
 
@@ -324,8 +331,7 @@ public:
 		micro_linearities.push_back(micro_linearity);
 		micro_chains.push_back(micro_unique);
 
-		int* macro_adjacency = new int[particles_ * particles_];
-		macro_adjacency = Adjacency(x, y, macro_structure_separation);
+		int* macro_adjacency = Adjacency(x, y, macro_structure_separation);
 
 		std::vector<int> macro_chain = BFS(macro_adjacency);
 
@@ -351,6 +357,8 @@ public:
 
 		times.push_back(time);
 		Averages();
+		delete micro_adjacency;
+		delete macro_adjacency;
 		if (iteration_ >= window_ * 2) {
 			return EndSimulation();
 		}

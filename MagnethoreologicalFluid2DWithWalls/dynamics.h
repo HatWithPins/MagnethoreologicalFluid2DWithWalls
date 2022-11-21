@@ -47,13 +47,13 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 		}
 	}
 
-	Analysis analysis(mason, amplitude_relationship, particles, length, window);
-	Box box(particles, length);
-	box.WritePositions(counter, mason, amplitude_relationship, repetition, "");
+	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window);
+	Box* box = new Box(particles, length);
+	box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
 
-	std::vector<double> get_x = box.ReturnX();
+	std::vector<double> get_x = box->ReturnX();
 	double* x_0 = get_x.data();
-	std::vector<double> get_y = box.ReturnY();
+	std::vector<double> get_y = box->ReturnY();
 	double* y_0 = get_y.data();
 
 	std::vector<cl::Platform> all_platforms;
@@ -226,11 +226,11 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 			queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
 			queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
 			if (repetition == 0) {
-				box.SetX(x_0);
-				box.SetY(y_0);
-				box.WritePositions(counter, mason, amplitude_relationship, repetition, "");
+				box->SetX(x_0);
+				box->SetY(y_0);
+				box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
 			}
-			end_simulation = analysis.PreAnalysis(x_0, y_0, time) || (current_lap >= laps);
+			end_simulation = analysis->PreAnalysis(x_0, y_0, time) || (current_lap >= laps);
 		}
 		else if (current_lap == laps - 1) {
 			queue.enqueueReadBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
@@ -241,22 +241,29 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 				queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
 				queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
 				if (repetition == 0) {
-					box.SetX(x_0);
-					box.SetY(y_0);
-					box.WritePositions(counter, mason, amplitude_relationship, repetition, "");
+					box->SetX(x_0);
+					box->SetY(y_0);
+					box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
 				}
-				end_simulation = analysis.PreAnalysis(x_0, y_0, time);
+				end_simulation = analysis->PreAnalysis(x_0, y_0, time);
 				stretch = 0;
 			}
 		}
 	}
 
 	if (repetition == 0) {
-		box.SetX(x_0);
-		box.SetY(y_0);
-		box.WritePositions(counter, mason, amplitude_relationship, repetition, "");
+		box->SetX(x_0);
+		box->SetY(y_0);
+		box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
 	}
-	analysis.WriteAnalysis(repetition, "");
+	analysis->WriteAnalysis(repetition, "");
+
+	delete box;
+	delete analysis;
+	delete initial_indices_sum;
+	delete last_indices_sum;
+	delete particle_0;
+	delete particle_1;
 
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<seconds>(stop - start);
