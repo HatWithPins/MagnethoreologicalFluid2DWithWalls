@@ -5,6 +5,7 @@ private:
 	int iteration_;
 	int particles_;
 	int length_;
+	int dimensions_;
 	int window_;
 	double epsilon_ = 0.1;
 	double micro_structure_separation = 1.1;
@@ -19,26 +20,53 @@ private:
 	std::vector<std::vector<double>> macro_means;
 	std::vector<double> times;
 
-	int* Adjacency(double* x, double* y, double max_separation) {
+	int* Adjacency(double* x, double* y, double* z, double max_separation) {
 		int* adjacency = new int[particles_ * particles_];
 		double r;
-		double distances[3];
 
-		for (int i = 0; i < particles_; i++) {
-			for (int j = 0; j < particles_; j++) {
-				distances[0] = (sqrt(pow(x[j] - x[i], 2) + pow(y[j] - y[i], 2)));
-				distances[1] = (sqrt(pow(x[j] - x[i] + (length_), 2) + pow(y[j] - y[i], 2)));
-				distances[2] = (sqrt(pow(x[j] - x[i] - (length_), 2) + pow(y[j] - y[i], 2)));
-				int index = 0;
-				for (int k = 0; k < 3; k++) {
-					if (distances[index] > distances[k]) { index = k; }
+		if (dimensions_ == 2) {
+			double distances[3];
+			for (int i = 0; i < particles_; i++) {
+				for (int j = 0; j < particles_; j++) {
+					distances[0] = (sqrt(pow(x[j] - x[i], 2) + pow(y[j] - y[i], 2)));
+					distances[1] = (sqrt(pow(x[j] - x[i] + (length_), 2) + pow(y[j] - y[i], 2)));
+					distances[2] = (sqrt(pow(x[j] - x[i] - (length_), 2) + pow(y[j] - y[i], 2)));
+					int index = 0;
+					for (int k = 0; k < 3; k++) {
+						if (distances[index] > distances[k]) { index = k; }
+					}
+
+					r = distances[index];
+
+					adjacency[i * particles_ + j] = (r <= max_separation);
 				}
-
-				r = distances[index];
-
-				adjacency[i * particles_ + j] = (r <= max_separation);
 			}
 		}
+		else if (dimensions_ == 3) {
+			double distances[9];
+			for (int i = 0; i < particles_; i++) {
+				for (int j = 0; j < particles_; j++) {
+					distances[0] = (sqrt(pow(x[j] - x[i], 2) + pow(y[j] - y[i], 2) + pow(z[j]-z[i],2)));
+					distances[1] = (sqrt(pow(x[j] - x[i], 2) + pow(y[j] - y[i] - (length_), 2) + pow(z[j] - z[i], 2)));
+					distances[2] = (sqrt(pow(x[j] - x[i] + (length_), 2) + pow(y[j] - y[i] - (length_), 2) + pow(z[j] - z[i], 2)));
+					distances[3] = (sqrt(pow(x[j] - x[i] + (length_), 2) + pow(y[j] - y[i], 2) + pow(z[j] - z[i], 2)));
+					distances[4] = (sqrt(pow(x[j] - x[i] + (length_), 2) + pow(y[j] - y[i] + (length_), 2) + pow(z[j] - z[i], 2)));
+					distances[5] = (sqrt(pow(x[j] - x[i], 2) + pow(y[j] - y[i] + (length_), 2) + pow(z[j] - z[i], 2)));
+					distances[6] = (sqrt(pow(x[j] - x[i] - (length_), 2) + pow(y[j] - y[i] + (length_), 2) + pow(z[j] - z[i], 2)));
+					distances[7] = (sqrt(pow(x[j] - x[i] - (length_), 2) + pow(y[j] - y[i], 2) + pow(z[j] - z[i], 2)));
+					distances[8] = (sqrt(pow(x[j] - x[i] - (length_), 2) + pow(y[j] - y[i] - (length_), 2) + pow(z[j] - z[i], 2)));
+					int index = 0;
+					for (int k = 0; k < 9; k++) {
+						if (distances[index] > distances[k]) { index = k; }
+					}
+
+					r = distances[index];
+
+					adjacency[i * particles_ + j] = (r <= max_separation);
+				}
+			}
+		}
+
 
 		return adjacency;
 	}
@@ -87,7 +115,7 @@ private:
 		return chain;
 	}
 
-	std::vector<double> Linearity(double* x, double* y, std::vector<int> chain, std::vector<int> unique, std::vector<int> size) {
+	std::vector<double> Linearity(double* x, double* y, double* z, std::vector<int> chain, std::vector<int> unique, std::vector<int> size) {
 		std::vector<double> linearity;
 		double xi, yi, Rx, Ry, Ixx, Iyy, Ixy, lambda_1, lambda_2, I_max, I_min;
 		int position = 0;
@@ -233,22 +261,22 @@ private:
 		for (int i = iteration_ - window_; i < iteration_ - 1; i++) {
 			micro_n += micro_means[i][0];
 			micro_average_size += micro_means[i][2] * micro_means[i][0];
-			micro_average_linearity += micro_means[i][4] * micro_means[i][0];
+			if (dimensions_ == 2) micro_average_linearity += micro_means[i][4] * micro_means[i][0];
 		}
 
 		micro_average_size = micro_average_size / micro_n;
-		micro_average_linearity = micro_average_linearity / micro_n;
+		if (dimensions_ == 2) micro_average_linearity = micro_average_linearity / micro_n;
 		micro_average_na = micro_n / iteration_;
 
 		for (int i = iteration_ - window_; i < iteration_ - 1; i++) {
 			micro_sigma_na += (micro_means[i][0] - micro_average_na) * (micro_means[i][0] - micro_average_na);
 			micro_sigma_size += (micro_means[i][2] - micro_average_size) * (micro_means[i][2] - micro_average_size);
-			micro_sigma_linearity += (micro_means[i][4] - micro_average_linearity) * (micro_means[i][4] - micro_average_linearity);
+			if (dimensions_ == 2) micro_sigma_linearity += (micro_means[i][4] - micro_average_linearity) * (micro_means[i][4] - micro_average_linearity);
 		}
 
 		micro_sigma_na = sqrt(micro_sigma_na / micro_n);
 		micro_sigma_size = sqrt(micro_sigma_size / micro_n);
-		micro_sigma_linearity = sqrt(micro_sigma_linearity / micro_n);
+		if (dimensions_ == 2) micro_sigma_linearity = sqrt(micro_sigma_linearity / micro_n);
 
 		//Macro structures.
 		double macro_n = 0;
@@ -262,22 +290,28 @@ private:
 		for (int i = iteration_ - window_; i < iteration_ - 1; i++) {
 			macro_n += macro_means[i][0];
 			macro_average_size += macro_means[i][2] * macro_means[i][0];
-			macro_average_linearity += macro_means[i][4] * macro_means[i][0];
+			if (dimensions_ == 2) macro_average_linearity += macro_means[i][4] * macro_means[i][0];
 		}
 
 		macro_average_size = macro_average_size / macro_n;
-		macro_average_linearity = macro_average_linearity / macro_n;
+		if (dimensions_ == 2) macro_average_linearity = macro_average_linearity / macro_n;
 		macro_average_na = macro_n / iteration_;
 
 		for (int i = iteration_ - window_; i < iteration_ - 1; i++) {
 			macro_sigma_na += (macro_means[i][0] - macro_average_na) * (macro_means[i][0] - macro_average_na);
 			macro_sigma_size += (macro_means[i][2] - macro_average_size) * (macro_means[i][2] - macro_average_size);
-			macro_sigma_linearity += (macro_means[i][4] - macro_average_linearity) * (macro_means[i][4] - macro_average_linearity);
+			if (dimensions_ == 2) macro_sigma_linearity += (macro_means[i][4] - macro_average_linearity) * (macro_means[i][4] - macro_average_linearity);
 		}
 
 		macro_sigma_na = sqrt(macro_sigma_na / macro_n);
 		macro_sigma_size = sqrt(macro_sigma_size / macro_n);
-		macro_sigma_linearity = sqrt(macro_sigma_linearity / macro_n);
+		if (dimensions_ == 2) macro_sigma_linearity = sqrt(macro_sigma_linearity / macro_n);
+		if (dimensions_ != 2) {
+			micro_average_linearity = 1;
+			micro_sigma_linearity = 0;
+			macro_average_linearity = 1;
+			macro_sigma_linearity = 0;
+		}
 
 		return (micro_sigma_na / micro_average_na <= epsilon_) * (micro_sigma_size / micro_average_size <= epsilon_) * (micro_sigma_linearity / micro_average_linearity <= epsilon_)*
 			(macro_sigma_na / macro_average_na <= epsilon_) * (macro_sigma_size / macro_average_size <= epsilon_) * (macro_sigma_linearity / macro_average_linearity <= epsilon_);
@@ -285,12 +319,13 @@ private:
 
 public:
 
-	Analysis(double mason, double amplitude_relationship, int particles, int length, int window) {
+	Analysis(double mason, double amplitude_relationship, int particles, int length, int window, int dimensions) {
 		mason_ = mason;
 		amplitude_relationship_ = amplitude_relationship;
 		particles_ = particles;
 		length_ = length;
 		window_ = window;
+		dimensions_ = dimensions;
 		iteration_ = 0;
 	}
 	~Analysis() {
@@ -304,9 +339,9 @@ public:
 		macro_sizes.~vector();
 	}
 
-	bool PreAnalysis(double* x, double* y, double time) {
+	bool PreAnalysis(double* x, double* y, double* z, double time) {
 		iteration_++;
-		int* micro_adjacency = Adjacency(x, y, micro_structure_separation);
+		int* micro_adjacency = Adjacency(x, y, z, micro_structure_separation);
 
 		std::vector<int> micro_chain = BFS(micro_adjacency);
 
@@ -327,11 +362,13 @@ public:
 		std::vector<double> micro_linearity;
 		micro_sizes.push_back(micro_length);
 
-		micro_linearity = Linearity(x, y, micro_chain, micro_unique, micro_length);
-		micro_linearities.push_back(micro_linearity);
+		if (dimensions_ == 2) {
+			micro_linearity = Linearity(x, y, z, micro_chain, micro_unique, micro_length);
+			micro_linearities.push_back(micro_linearity);
+		}
 		micro_chains.push_back(micro_unique);
 
-		int* macro_adjacency = Adjacency(x, y, macro_structure_separation);
+		int* macro_adjacency = Adjacency(x, y, z, macro_structure_separation);
 
 		std::vector<int> macro_chain = BFS(macro_adjacency);
 
@@ -351,8 +388,10 @@ public:
 		std::vector<double> macro_linearity;
 		macro_sizes.push_back(macro_length);
 
-		macro_linearity = Linearity(x, y, macro_chain, macro_unique, macro_length);
-		macro_linearities.push_back(macro_linearity);
+		if (dimensions_ == 2) {
+			macro_linearity = Linearity(x, y, z, macro_chain, macro_unique, macro_length);
+			macro_linearities.push_back(macro_linearity);
+		}
 		macro_chains.push_back(macro_unique);
 
 		times.push_back(time);
@@ -389,22 +428,22 @@ public:
 		for (int i = 0; i < iteration_; i++) {
 			micro_n += micro_means[i][0];
 			micro_average_size += micro_means[i][2] * micro_means[i][0];
-			micro_average_linearity += micro_means[i][4] * micro_means[i][0];
+			if (dimensions_ == 2) micro_average_linearity += micro_means[i][4] * micro_means[i][0];
 		}
 
 		micro_average_size = micro_average_size / micro_n;
-		micro_average_linearity = micro_average_linearity / micro_n;
+		if (dimensions_ == 2) micro_average_linearity = micro_average_linearity / micro_n;
 		micro_average_na = micro_n / iteration_;
 
 		for (int i = 0; i < iteration_; i++) {
 			micro_sigma_na += (micro_means[i][0] - micro_average_na) * (micro_means[i][0] - micro_average_na);
 			micro_sigma_size += (micro_means[i][2] - micro_average_size) * (micro_means[i][2] - micro_average_size);
-			micro_sigma_linearity += (micro_means[i][4] - micro_average_linearity) * (micro_means[i][4] - micro_average_linearity);
+			if (dimensions_ == 2) micro_sigma_linearity += (micro_means[i][4] - micro_average_linearity) * (micro_means[i][4] - micro_average_linearity);
 		}
 
 		micro_sigma_na = sqrt(micro_sigma_na / micro_n);
 		micro_sigma_size = sqrt(micro_sigma_size / micro_n);
-		micro_sigma_linearity = sqrt(micro_sigma_linearity / micro_n);
+		if (dimensions_ == 2) micro_sigma_linearity = sqrt(micro_sigma_linearity / micro_n);
 
 		//Macro structures.
 		double macro_n = 0;
@@ -418,26 +457,33 @@ public:
 		for (int i = 0; i < iteration_; i++) {
 			macro_n += macro_means[i][0];
 			macro_average_size += macro_means[i][2] * macro_means[i][0];
-			macro_average_linearity += macro_means[i][4] * macro_means[i][0];
+			if (dimensions_ == 2) macro_average_linearity += macro_means[i][4] * macro_means[i][0];
 		}
 
 		macro_average_size = macro_average_size / macro_n;
-		macro_average_linearity = macro_average_linearity / macro_n;
+		if (dimensions_ == 2) macro_average_linearity = macro_average_linearity / macro_n;
 		macro_average_na = macro_n / iteration_;
 
 		for (int i = 0; i < iteration_; i++) {
 			macro_sigma_na += (macro_means[i][0] - macro_average_na) * (macro_means[i][0] - macro_average_na);
 			macro_sigma_size += (macro_means[i][2] - macro_average_size) * (macro_means[i][2] - macro_average_size);
-			macro_sigma_linearity += (macro_means[i][4] - macro_average_linearity) * (macro_means[i][4] - macro_average_linearity);
+			if (dimensions_ == 2) macro_sigma_linearity += (macro_means[i][4] - macro_average_linearity) * (macro_means[i][4] - macro_average_linearity);
 		}
 
 		macro_sigma_na = sqrt(macro_sigma_na / macro_n);
 		macro_sigma_size = sqrt(macro_sigma_size / macro_n);
-		macro_sigma_linearity = sqrt(macro_sigma_linearity / macro_n);
+		if (dimensions_ == 2) macro_sigma_linearity = sqrt(macro_sigma_linearity / macro_n);
 
 		for (int i = 0; i < iteration_; i++) {
 			times_file << times[i] << "," << micro_means[i][0] << "," << micro_means[i][2] << "," << micro_means[i][4] << "," 
 				<< macro_means[i][0] << "," << macro_means[i][2] << "," << macro_means[i][4] << "\n";
+		}
+
+		if (dimensions_ != 2) {
+			micro_average_linearity = 1;
+			micro_sigma_linearity = 0;
+			macro_average_linearity = 1;
+			macro_sigma_linearity = 0;
 		}
 
 		micro_analysis_file << mason_ << "," << amplitude_relationship_ << "," << micro_n << "," 

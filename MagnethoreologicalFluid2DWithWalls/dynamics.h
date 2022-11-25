@@ -1,9 +1,19 @@
 using namespace std::chrono;
-void Simulation(int particles, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_time) {
+void Simulation(int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_time) {
 	auto start = high_resolution_clock::now();
 	std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + " and Mason = " + std::to_string(mason) + "\n";
 
-	double magnetic_field[2] = { 0.0, 1.0 }; 
+	double magnetic_field[3];
+	if (dimensions == 2) {
+		magnetic_field[0] = 0.0;
+		magnetic_field[1] = 1.0;
+		magnetic_field[2] = 0.0;
+	}
+	else if (dimensions == 3) {
+		magnetic_field[0] = 0.0;
+		magnetic_field[1] = 0.0;
+		magnetic_field[2] = 1.0;
+	}
 	double delta_t = original_delta_t;
 	double pi = 3.14159265359;
 	double step = 2 * pi / (mason * 360);
@@ -47,14 +57,16 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 		}
 	}
 
-	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window);
-	Box* box = new Box(particles, length);
-	box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
+	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window, dimensions);
+	Box* box = new Box(particles, length, dimensions);
+	if (repetition == 0) box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
 
 	std::vector<double> get_x = box->ReturnX();
 	double* x_0 = get_x.data();
 	std::vector<double> get_y = box->ReturnY();
 	double* y_0 = get_y.data();
+	std::vector<double> get_z = box->ReturnZ();
+	double* z_0 = get_z.data();
 
 	std::vector<cl::Platform> all_platforms;
 	cl::Platform::get(&all_platforms);
@@ -75,7 +87,9 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 
 	cl::Buffer buffer_x_0 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_y_0 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
-	cl::Buffer buffer_magnetic_field = cl::Buffer(context, CL_MEM_READ_WRITE, 2 * sizeof(double));
+	cl::Buffer buffer_z_0 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
+	cl::Buffer buffer_magnetic_field = cl::Buffer(context, CL_MEM_READ_WRITE, 3 * sizeof(double));
+	cl::Buffer buffer_dimensions = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_length = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_particles = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_delta_t = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(double));
@@ -83,6 +97,7 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 	cl::Buffer buffer_time = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(double));
 	cl::Buffer buffer_forces_x = cl::Buffer(context, CL_MEM_READ_WRITE, matrix_size * sizeof(double));
 	cl::Buffer buffer_forces_y = cl::Buffer(context, CL_MEM_READ_WRITE, matrix_size * sizeof(double));
+	cl::Buffer buffer_forces_z = cl::Buffer(context, CL_MEM_READ_WRITE, matrix_size * sizeof(double));
 	cl::Buffer buffer_initial_indices_sum = cl::Buffer(context, CL_MEM_READ_ONLY, matrix_size * sizeof(int));
 	cl::Buffer buffer_last_indices_sum = cl::Buffer(context, CL_MEM_READ_ONLY, matrix_size * sizeof(int));
 	cl::Buffer buffer_particle_0 = cl::Buffer(context, CL_MEM_READ_ONLY, matrix_size * sizeof(int));
@@ -93,6 +108,7 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 	cl::Buffer buffer_amplitude_relationship = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(double));
 	cl::Buffer buffer_x_1 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_y_1 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
+	cl::Buffer buffer_z_1 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_r_array = cl::Buffer(context, CL_MEM_READ_WRITE, matrix_size * sizeof(double));
 
 	std::ifstream sum_file("sum.cl");
@@ -150,52 +166,64 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 
 	sum_kernel.setArg(0, buffer_x_0);
 	sum_kernel.setArg(1, buffer_y_0);
-	sum_kernel.setArg(2, buffer_length);
-	sum_kernel.setArg(3, buffer_particles);
-	sum_kernel.setArg(4, buffer_delta_t);
-	sum_kernel.setArg(5, buffer_forces_x);
-	sum_kernel.setArg(6, buffer_forces_y);
-	sum_kernel.setArg(7, buffer_initial_indices_sum);
-	sum_kernel.setArg(8, buffer_last_indices_sum);
-	sum_kernel.setArg(9, buffer_matrix_size);
-	sum_kernel.setArg(10, buffer_valid);
-	sum_kernel.setArg(11, buffer_x_1);
-	sum_kernel.setArg(12, buffer_y_1);
+	sum_kernel.setArg(2, buffer_z_0);
+	sum_kernel.setArg(3, buffer_dimensions);
+	sum_kernel.setArg(4, buffer_length);
+	sum_kernel.setArg(5, buffer_particles);
+	sum_kernel.setArg(6, buffer_delta_t);
+	sum_kernel.setArg(7, buffer_forces_x);
+	sum_kernel.setArg(8, buffer_forces_y);
+	sum_kernel.setArg(9, buffer_initial_indices_sum);
+	sum_kernel.setArg(10, buffer_last_indices_sum);
+	sum_kernel.setArg(11, buffer_matrix_size);
+	sum_kernel.setArg(12, buffer_valid);
+	sum_kernel.setArg(13, buffer_x_1);
+	sum_kernel.setArg(14, buffer_y_1);
+	sum_kernel.setArg(15, buffer_z_1);
 
 	forces_kernel.setArg(0, buffer_x_0);
 	forces_kernel.setArg(1, buffer_y_0);
-	forces_kernel.setArg(2, buffer_magnetic_field);
-	forces_kernel.setArg(3, buffer_length);
-	forces_kernel.setArg(4, buffer_particles);
-	forces_kernel.setArg(5, buffer_matrix_size);
-	forces_kernel.setArg(6, buffer_particle_0);
-	forces_kernel.setArg(7, buffer_particle_1);
-	forces_kernel.setArg(8, buffer_forces_x);
-	forces_kernel.setArg(9, buffer_forces_y);
+	forces_kernel.setArg(2, buffer_z_0);
+	forces_kernel.setArg(3, buffer_dimensions);
+	forces_kernel.setArg(4, buffer_magnetic_field);
+	forces_kernel.setArg(5, buffer_length);
+	forces_kernel.setArg(6, buffer_particles);
+	forces_kernel.setArg(7, buffer_matrix_size);
+	forces_kernel.setArg(8, buffer_particle_0);
+	forces_kernel.setArg(9, buffer_particle_1);
+	forces_kernel.setArg(10, buffer_forces_x);
+	forces_kernel.setArg(11, buffer_forces_y);
+	forces_kernel.setArg(12, buffer_forces_z);
 
 	distances_kernel.setArg(0, buffer_x_0);
 	distances_kernel.setArg(1, buffer_y_0);
-	distances_kernel.setArg(2, buffer_particle_0);
-	distances_kernel.setArg(3, buffer_particle_1);
-	distances_kernel.setArg(4, buffer_length);
-	distances_kernel.setArg(5, buffer_valid);
+	distances_kernel.setArg(2, buffer_z_0);
+	distances_kernel.setArg(3, buffer_particle_0);
+	distances_kernel.setArg(4, buffer_particle_1);
+	distances_kernel.setArg(5, buffer_length);
+	distances_kernel.setArg(6, buffer_valid);
+	distances_kernel.setArg(7, buffer_dimensions);
 
 	validation_kernel.setArg(0, buffer_valid);
 	validation_kernel.setArg(1, buffer_x_0);
 	validation_kernel.setArg(2, buffer_y_0);
-	validation_kernel.setArg(3, buffer_x_1);
-	validation_kernel.setArg(4, buffer_y_1);
-	validation_kernel.setArg(5, buffer_original_delta_t);
-	validation_kernel.setArg(6, buffer_delta_t);
-	validation_kernel.setArg(7, buffer_time);
-	validation_kernel.setArg(8, buffer_magnetic_field);
-	validation_kernel.setArg(9, buffer_mason);
-	validation_kernel.setArg(10, buffer_amplitude_relationship);
+	validation_kernel.setArg(3, buffer_z_0);
+	validation_kernel.setArg(4, buffer_x_1);
+	validation_kernel.setArg(5, buffer_y_1);
+	validation_kernel.setArg(6, buffer_z_1);
+	validation_kernel.setArg(7, buffer_original_delta_t);
+	validation_kernel.setArg(8, buffer_delta_t);
+	validation_kernel.setArg(9, buffer_time);
+	validation_kernel.setArg(10, buffer_magnetic_field);
+	validation_kernel.setArg(11, buffer_mason);
+	validation_kernel.setArg(12, buffer_amplitude_relationship);
+	validation_kernel.setArg(13, buffer_dimensions);
 
 	cl::NDRange global_long(matrix_size);
 	cl::NDRange global_short(particles);
 
 	queue.enqueueWriteBuffer(buffer_particles, CL_TRUE, 0, sizeof(int), &particles);
+	queue.enqueueWriteBuffer(buffer_dimensions, CL_TRUE, 0, sizeof(int), &dimensions);
 	queue.enqueueWriteBuffer(buffer_length, CL_TRUE, 0, sizeof(int), &length);
 	queue.enqueueWriteBuffer(buffer_matrix_size, CL_TRUE, 0, sizeof(int), &matrix_size);
 	queue.enqueueWriteBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
@@ -203,13 +231,14 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 	queue.enqueueWriteBuffer(buffer_mason, CL_TRUE, 0, sizeof(double), &mason);
 	queue.enqueueWriteBuffer(buffer_amplitude_relationship, CL_TRUE, 0, sizeof(double), &amplitude_relationship);
 	queue.enqueueWriteBuffer(buffer_time, CL_TRUE, 0, sizeof(double), &time);
-	queue.enqueueWriteBuffer(buffer_magnetic_field, CL_TRUE, 0, 2 * sizeof(double), &magnetic_field);
+	queue.enqueueWriteBuffer(buffer_magnetic_field, CL_TRUE, 0, 3 * sizeof(double), &magnetic_field);
 	queue.enqueueWriteBuffer(buffer_particle_0, CL_TRUE, 0, matrix_size * sizeof(int), particle_0);
 	queue.enqueueWriteBuffer(buffer_particle_1, CL_TRUE, 0, matrix_size * sizeof(int), particle_1);
 	queue.enqueueWriteBuffer(buffer_initial_indices_sum, CL_TRUE, 0, particles * sizeof(int), initial_indices_sum);
 	queue.enqueueWriteBuffer(buffer_last_indices_sum, CL_TRUE, 0, particles * sizeof(int), last_indices_sum);
 	queue.enqueueWriteBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
 	queue.enqueueWriteBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
+	queue.enqueueWriteBuffer(buffer_z_0, CL_TRUE, 0, particles * sizeof(double), z_0);
 
 	while (!end_simulation) {
 		queue.enqueueNDRangeKernel(forces_kernel, cl::NullRange, global_long, cl::NullRange);
@@ -225,12 +254,14 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 			lap = current_lap;
 			queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
 			queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
+			queue.enqueueReadBuffer(buffer_z_0, CL_TRUE, 0, particles * sizeof(double), z_0);
 			if (repetition == 0) {
 				box->SetX(x_0);
 				box->SetY(y_0);
+				box->SetZ(z_0);
 				box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
 			}
-			end_simulation = analysis->PreAnalysis(x_0, y_0, time) || (current_lap >= laps);
+			end_simulation = analysis->PreAnalysis(x_0, y_0, z_0, time) || (current_lap >= laps);
 		}
 		else if (current_lap == laps - 1) {
 			queue.enqueueReadBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
@@ -240,12 +271,14 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 				counter++;
 				queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
 				queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
+				queue.enqueueReadBuffer(buffer_z_0, CL_TRUE, 0, particles * sizeof(double), z_0);
 				if (repetition == 0) {
 					box->SetX(x_0);
 					box->SetY(y_0);
+					box->SetZ(z_0);
 					box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
 				}
-				end_simulation = analysis->PreAnalysis(x_0, y_0, time);
+				end_simulation = analysis->PreAnalysis(x_0, y_0, z_0, time);
 				stretch = 0;
 			}
 		}
@@ -254,16 +287,17 @@ void Simulation(int particles, int length, double mason, double amplitude_relati
 	if (repetition == 0) {
 		box->SetX(x_0);
 		box->SetY(y_0);
+		box->SetZ(z_0);
 		box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
 	}
 	analysis->WriteAnalysis(repetition, "");
 
 	delete box;
 	delete analysis;
-	delete initial_indices_sum;
-	delete last_indices_sum;
-	delete particle_0;
-	delete particle_1;
+	delete[] initial_indices_sum;
+	delete[] last_indices_sum;
+	delete[] particle_0;
+	delete[] particle_1;
 
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<seconds>(stop - start);
