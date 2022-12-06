@@ -1,25 +1,28 @@
 using namespace std::chrono;
-void Simulation(int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_time) {
+void Simulation(int mode, int phases, int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_times[3]) {
 	auto start = high_resolution_clock::now();
-	std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + " and Mason = " + std::to_string(mason) + "\n";
+	std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + " and mode " + std::to_string(mode) + "\n";
 
 	double magnetic_field[3];
-	if (dimensions == 2) {
-		magnetic_field[0] = 0.0;
-		magnetic_field[1] = 1.0;
-		magnetic_field[2] = 0.0;
-	}
-	else if (dimensions == 3) {
+	if (dimensions == 3 && mode != 6 && mode != 3) {
 		magnetic_field[0] = 0.0;
 		magnetic_field[1] = 0.0;
 		magnetic_field[2] = 1.0;
 	}
+	else {
+		magnetic_field[0] = 0.0;
+		magnetic_field[1] = 1.0;
+		magnetic_field[2] = 0.0;
+	}
+
 	double delta_t = original_delta_t;
 	double pi = 3.14159265359;
 	double step = 2 * pi / (mason * 360);
 	double stretch = 0;
-	int laps = ceil(max_time * mason / (2 * pi));
-	double time = 0.0;
+	double max_time;
+	double time = 0;
+	double t = 0;
+	int laps;
 	int lap = 0;
 	int current_lap = 0;
 	int counter = 0;
@@ -31,6 +34,7 @@ void Simulation(int particles, int dimensions, int length, double mason, double 
 	int* particle_0 = new int[matrix_size];
 	int* particle_1 = new int[matrix_size];
 	bool end_simulation = false;
+	double stress = 0;
 
 	for (int i = 0; i < particles; i++) {
 		initial_indices_sum[i] = 0;
@@ -51,15 +55,16 @@ void Simulation(int particles, int dimensions, int length, double mason, double 
 	int index = 0;
 	for (int i = 0; i < particles - 1; i++) {
 		for (int j = i + 1; j < particles; j++) {
-			particle_0[index] = i;
-			particle_1[index] = j;
+			particle_1[index] = i;
+			particle_0[index] = j;
 			index++;
 		}
 	}
 
+	std::string tag = "mode-" + std::to_string(mode);
 	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window, dimensions);
 	Box* box = new Box(particles, length, dimensions);
-	if (repetition == 0) box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
+	if (repetition == 0) box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 
 	std::vector<double> get_x = box->ReturnX();
 	double* x_0 = get_x.data();
@@ -67,6 +72,8 @@ void Simulation(int particles, int dimensions, int length, double mason, double 
 	double* y_0 = get_y.data();
 	std::vector<double> get_z = box->ReturnZ();
 	double* z_0 = get_z.data();
+
+	double r_min = 1 - log(100.0) / 10;
 
 	std::vector<cl::Platform> all_platforms;
 	cl::Platform::get(&all_platforms);
@@ -89,6 +96,8 @@ void Simulation(int particles, int dimensions, int length, double mason, double 
 	cl::Buffer buffer_y_0 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_z_0 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_magnetic_field = cl::Buffer(context, CL_MEM_READ_WRITE, 3 * sizeof(double));
+	cl::Buffer buffer_mode = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
+	cl::Buffer buffer_phase = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_dimensions = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_length = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_particles = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
@@ -109,7 +118,10 @@ void Simulation(int particles, int dimensions, int length, double mason, double 
 	cl::Buffer buffer_x_1 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_y_1 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_z_1 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
-	cl::Buffer buffer_r_array = cl::Buffer(context, CL_MEM_READ_WRITE, matrix_size * sizeof(double));
+	cl::Buffer buffer_stress_array = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
+	cl::Buffer buffer_stress = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(double));
+	cl::Buffer buffer_r_array = cl::Buffer(context, CL_MEM_READ_WRITE, matrix_size*sizeof(double));
+
 
 	std::ifstream sum_file("sum.cl");
 	std::string sum_code(std::istreambuf_iterator<char>(sum_file), (std::istreambuf_iterator<char>()));
@@ -173,13 +185,17 @@ void Simulation(int particles, int dimensions, int length, double mason, double 
 	sum_kernel.setArg(6, buffer_delta_t);
 	sum_kernel.setArg(7, buffer_forces_x);
 	sum_kernel.setArg(8, buffer_forces_y);
-	sum_kernel.setArg(9, buffer_initial_indices_sum);
-	sum_kernel.setArg(10, buffer_last_indices_sum);
-	sum_kernel.setArg(11, buffer_matrix_size);
-	sum_kernel.setArg(12, buffer_valid);
-	sum_kernel.setArg(13, buffer_x_1);
-	sum_kernel.setArg(14, buffer_y_1);
-	sum_kernel.setArg(15, buffer_z_1);
+	sum_kernel.setArg(9, buffer_forces_z);
+	sum_kernel.setArg(10, buffer_initial_indices_sum);
+	sum_kernel.setArg(11, buffer_last_indices_sum);
+	sum_kernel.setArg(12, buffer_matrix_size);
+	sum_kernel.setArg(13, buffer_valid);
+	sum_kernel.setArg(14, buffer_x_1);
+	sum_kernel.setArg(15, buffer_y_1);
+	sum_kernel.setArg(16, buffer_z_1);
+	sum_kernel.setArg(17, buffer_mode);
+	sum_kernel.setArg(18, buffer_phase);
+	sum_kernel.setArg(19, buffer_stress_array);
 
 	forces_kernel.setArg(0, buffer_x_0);
 	forces_kernel.setArg(1, buffer_y_0);
@@ -218,10 +234,17 @@ void Simulation(int particles, int dimensions, int length, double mason, double 
 	validation_kernel.setArg(11, buffer_mason);
 	validation_kernel.setArg(12, buffer_amplitude_relationship);
 	validation_kernel.setArg(13, buffer_dimensions);
+	validation_kernel.setArg(14, buffer_mode);
+	validation_kernel.setArg(15, buffer_phase);
+	validation_kernel.setArg(16, buffer_stress_array);
+	validation_kernel.setArg(17, buffer_stress);
+	validation_kernel.setArg(18, buffer_particles);
+	validation_kernel.setArg(19, buffer_length);
 
 	cl::NDRange global_long(matrix_size);
 	cl::NDRange global_short(particles);
 
+	queue.enqueueWriteBuffer(buffer_mode, CL_TRUE, 0, sizeof(int), &mode);
 	queue.enqueueWriteBuffer(buffer_particles, CL_TRUE, 0, sizeof(int), &particles);
 	queue.enqueueWriteBuffer(buffer_dimensions, CL_TRUE, 0, sizeof(int), &dimensions);
 	queue.enqueueWriteBuffer(buffer_length, CL_TRUE, 0, sizeof(int), &length);
@@ -240,35 +263,23 @@ void Simulation(int particles, int dimensions, int length, double mason, double 
 	queue.enqueueWriteBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
 	queue.enqueueWriteBuffer(buffer_z_0, CL_TRUE, 0, particles * sizeof(double), z_0);
 
-	while (!end_simulation) {
-		queue.enqueueNDRangeKernel(forces_kernel, cl::NullRange, global_long, cl::NullRange);
-		queue.enqueueNDRangeKernel(sum_kernel, cl::NullRange, global_short, cl::NullRange);
-		queue.enqueueNDRangeKernel(distances_kernel, cl::NullRange, global_long, cl::NullRange);
-		queue.enqueueNDRangeKernel(validation_kernel, cl::NullRange, global_short, cl::NullRange);
-	
-		queue.enqueueReadBuffer(buffer_time, CL_TRUE, 0, sizeof(double), &time);
+	for (int phase = 0; phase < phases; phase++) {
+		max_time = max_times[phase];
+		laps = ceil(max_time * mason / (2 * pi));
+		queue.enqueueWriteBuffer(buffer_phase, CL_TRUE, 0, sizeof(int), &phase);
 
-		current_lap = floor(time * mason / (2 * pi));
-		if (current_lap > lap) {
-			counter++;
-			lap = current_lap;
-			queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
-			queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
-			queue.enqueueReadBuffer(buffer_z_0, CL_TRUE, 0, particles * sizeof(double), z_0);
-			if (repetition == 0) {
-				box->SetX(x_0);
-				box->SetY(y_0);
-				box->SetZ(z_0);
-				box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
-			}
-			end_simulation = analysis->PreAnalysis(x_0, y_0, z_0, time) || (current_lap >= laps);
-		}
-		else if (current_lap == laps - 1) {
-			queue.enqueueReadBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
-			stretch += delta_t;
+		while (!end_simulation) {
+			queue.enqueueNDRangeKernel(forces_kernel, cl::NullRange, global_long, cl::NullRange);
+			queue.enqueueNDRangeKernel(sum_kernel, cl::NullRange, global_short, cl::NullRange);
+			queue.enqueueNDRangeKernel(distances_kernel, cl::NullRange, global_long, cl::NullRange);
+			queue.enqueueNDRangeKernel(validation_kernel, cl::NullRange, global_short, cl::NullRange);
 
-			if (stretch > step) {
+			queue.enqueueReadBuffer(buffer_time, CL_TRUE, 0, sizeof(double), &time);
+
+			current_lap = floor(time * mason / (2 * pi));
+			if (current_lap > lap) {
 				counter++;
+				lap = current_lap;
 				queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
 				queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
 				queue.enqueueReadBuffer(buffer_z_0, CL_TRUE, 0, particles * sizeof(double), z_0);
@@ -276,10 +287,42 @@ void Simulation(int particles, int dimensions, int length, double mason, double 
 					box->SetX(x_0);
 					box->SetY(y_0);
 					box->SetZ(z_0);
-					box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
+					box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 				}
-				end_simulation = analysis->PreAnalysis(x_0, y_0, z_0, time);
-				stretch = 0;
+				analysis->PreAnalysis(x_0, y_0, z_0, time);
+				end_simulation = (lap >= laps) || time > max_time;
+
+				if (phase == phases - 1 && mode != 1) {
+					queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
+					t = time - max_times[phases - 1];
+					analysis->RecordStress(t, stress);
+				}
+			}
+			else if (current_lap == laps - 1) {
+				queue.enqueueReadBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
+				stretch += delta_t;
+
+				if (stretch > step) {
+					counter++;
+					queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
+					queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
+					queue.enqueueReadBuffer(buffer_z_0, CL_TRUE, 0, particles * sizeof(double), z_0);
+					if (repetition == 0) {
+						box->SetX(x_0);
+						box->SetY(y_0);
+						box->SetZ(z_0);
+						box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
+					}
+					analysis->PreAnalysis(x_0, y_0, z_0, time);
+					end_simulation = (lap >= laps) || time > max_time;
+					stretch = 0;
+
+					if (phase == phases - 1 && mode != 1) {
+						queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
+						t = time - max_times[phases - 1];
+						analysis->RecordStress(t, stress);
+					}
+				}
 			}
 		}
 	}
@@ -288,9 +331,12 @@ void Simulation(int particles, int dimensions, int length, double mason, double 
 		box->SetX(x_0);
 		box->SetY(y_0);
 		box->SetZ(z_0);
-		box->WritePositions(counter, mason, amplitude_relationship, repetition, "");
+		box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 	}
-	analysis->WriteAnalysis(repetition, "");
+	analysis->WriteAnalysis(repetition, tag);
+	if (mode != 1) {
+		analysis->WriteStress(repetition, tag);
+	}
 
 	delete box;
 	delete analysis;

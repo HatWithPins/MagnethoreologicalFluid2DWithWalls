@@ -9,8 +9,8 @@ __kernel void distances (
 	double B = 10;
 	double r_min = 1 - log(100.0)/B;
 	int idx = get_global_id(0);
-	int particle_0 = particle_0_array_0[particle_0dx];
-	int particle_1 = particle_1_array_0[particle_0dx];
+	int particle_0 = particle_0_array[idx];
+	int particle_1 = particle_1_array[idx];
 
 	if (*dimensions == 2) {
 		double distances[3];
@@ -22,7 +22,7 @@ __kernel void distances (
 			if (distances[index] > distances[j]){ index = j; }
 		}
 		r = distances[index];
-	} else if (*dimensions == 3) {
+	} else {
 		double distances[9];
 		distances[0] = (sqrt(pown(x_0[particle_1] - x_0[particle_0], 2) + pown(y_0[particle_1] - y_0[particle_0], 2) + pown(z_0[particle_1]-z_0[particle_0],2)));
 		distances[1] = (sqrt(pown(x_0[particle_1] - x_0[particle_0], 2) + pown(y_0[particle_1] - y_0[particle_0] - (*length), 2) + pown(z_0[particle_1] - z_0[particle_0], 2)));
@@ -40,6 +40,5 @@ __kernel void distances (
 		r = distances[index];
 	}
 	
-
 	if (r < r_min){ *valid = 0; }
 }

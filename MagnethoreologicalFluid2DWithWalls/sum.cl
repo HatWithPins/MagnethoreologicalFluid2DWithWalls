@@ -3,15 +3,16 @@
 __kernel void sum (
 	global double* x_0, global double* y_0, global double* z_0, global const int* dimensions, global const int* length, global const int* particles, global double* delta_t, 
 	global double* forces_x, global double* forces_y, global double* forces_z, global const int* initial_indices_sum, global const int* last_indices_sum, global const int* matrix_size, 
-	global int* valid, global double* x_1, global double* y_1, global double* z_1
+	global int* valid, global double* x_1, global double* y_1, global double* z_1, global const int* mode, global const int* phase , global double* stress_array
 	) {
 		double r;
-		double A = 2;
-		double B = 10;
+		double A = 1;
+		double B = 100;
 		double top_separation = 0.5;
 		double top_repulsion = 0;
 		double bottom_separation = 0.5;
 		double bottom_repulsion = 0;
+		double stress = 0;
 		int particle_0 = get_global_id(0);
 		int remainder_x;
 		int initial_index_sum = initial_indices_sum[particle_0];
@@ -19,20 +20,25 @@ __kernel void sum (
 		int index_sub = particle_0 - 1;
 
 		x_1[particle_0] = 0;
-		if (*dimensions == 2) {
+		y_1[particle_0] = 0;
+		z_1[particle_0] = 0;
+		if (*mode == 1) {
 			top_separation = (*length) - y_0[particle_0] + 0.5;
 			top_repulsion = -A * exp(-B * (top_separation - 1));
 			bottom_separation = y_0[particle_0] + 0.5;
 			bottom_repulsion = A * exp(-B * (bottom_separation - 1));
-			y_1[particle_0] = top_repulsion + bottom_repulsion;
-			z_1[particle_0] = 0;
-		} else id (*dimensions == 3) {
+			y_1[particle_0] += top_repulsion + bottom_repulsion;
+		} else {
 			top_separation = (*length) - z_0[particle_0] + 0.5;
 			top_repulsion = -A * exp(-B * (top_separation - 1));
 			bottom_separation = z_0[particle_0] + 0.5;
 			bottom_repulsion = A * exp(-B * (bottom_separation - 1));
-			y_1[particle_0] = 0;
-			z_1[particle_0] = top_repulsion + bottom_repulsion;
+			z_1[particle_0] += top_repulsion + bottom_repulsion;
+
+			if (((*mode == 2 || *mode == 3) && phase == 1) || phase == 2) {
+				stress = z_0[particle_0]/(*length);
+				x_1[particle_0] += stress;
+			}
 		}
 
 
@@ -56,6 +62,7 @@ __kernel void sum (
 		x_1[particle_0] = (*delta_t)*x_1[particle_0];
 		y_1[particle_0] = (*delta_t)*y_1[particle_0];
 		z_1[particle_0] = (*delta_t)*z_1[particle_0];
+		stress_array[particle_0] = x_1[particle_0];
 
 		r = (sqrt(x_1[particle_0]*x_1[particle_0] + y_1[particle_0]*y_1[particle_0] + z_1[particle_0]*z_1[particle_0]));
 		if (r > 0.03){ *valid = 0; }
@@ -67,7 +74,7 @@ __kernel void sum (
 		remainder_x = x_1[particle_0]/(*length);
 		x_1[particle_0] = x_1[particle_0] - remainder_x*(*length) + (*length)*(x_1[particle_0] < 0);
 		if (*dimensions == 3) {
-			double remainder_y = y_1[particle_0]/(*length);
+			int remainder_y = y_1[particle_0]/(*length);
 			y_1[particle_0] = y_1[particle_0] - remainder_y*(*length) + (*length)*(y_1[particle_0] < 0);
 		}
 }

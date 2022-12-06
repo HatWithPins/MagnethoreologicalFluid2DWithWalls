@@ -20,6 +20,8 @@ private:
 	std::vector<std::vector<double>> macro_linearities;
 	std::vector<std::vector<double>> macro_means;
 	std::vector<double> times;
+	std::vector<double> stress_times;
+	std::vector<double> stress_vector;
 
 	int* Adjacency(double* x, double* y, double* z, double max_separation) {
 		int* adjacency = new int[particles_ * particles_];
@@ -453,6 +455,20 @@ public:
 			return EndSimulation();
 		}
 		return false;
+	}
+
+	void RecordStress(double t, double stress) {
+		stress_times.push_back(t);
+		stress_vector.push_back(stress);
+	}
+	void WriteStress(int repetition, std::string tag) {
+		std::ofstream stress_file{ "analysis/stress-" + std::to_string(mason_) + "-" + std::to_string(amplitude_relationship_) + "-" + std::to_string(repetition) + "-" + tag + ".csv" };
+
+		stress_file << "t,stress\n";
+		for (int i = 0; i < stress_vector.size(); i++) {
+			stress_file << stress_times[i] << "," << stress_vector[i] << "\n";
+		}
+		stress_file.close();
 	}
 
 	void WriteAnalysis(int repetition, std::string tag) {
