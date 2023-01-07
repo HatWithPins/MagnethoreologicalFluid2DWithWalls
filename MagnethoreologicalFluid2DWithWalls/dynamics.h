@@ -33,7 +33,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	int* last_indices_sum = new int[particles];
 	int* particle_0 = new int[matrix_size];
 	int* particle_1 = new int[matrix_size];
-	bool end_simulation = false;
+	bool end_simulation;
 	double stress = 0;
 
 	for (int i = 0; i < particles; i++) {
@@ -267,6 +267,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 		max_time = max_times[phase];
 		laps = ceil(max_time * mason / (2 * pi));
 		queue.enqueueWriteBuffer(buffer_phase, CL_TRUE, 0, sizeof(int), &phase);
+		end_simulation = false;
 
 		while (!end_simulation) {
 			queue.enqueueNDRangeKernel(forces_kernel, cl::NullRange, global_long, cl::NullRange);
@@ -290,11 +291,12 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 					box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 				}
 				analysis->PreAnalysis(x_0, y_0, z_0, time);
-				end_simulation = (lap >= laps) || time > max_time;
+				end_simulation = time > max_time;
 
 				if (phase == phases - 1 && mode != 1) {
+					queue.enqueueReadBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
 					queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
-					t = time - max_times[phases - 1];
+					t += delta_t;
 					analysis->RecordStress(t, stress);
 				}
 			}
@@ -314,14 +316,13 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 						box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 					}
 					analysis->PreAnalysis(x_0, y_0, z_0, time);
-					end_simulation = (lap >= laps) || time > max_time;
+					end_simulation = time > max_time;
 					stretch = 0;
-
-					if (phase == phases - 1 && mode != 1) {
-						queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
-						t = time - max_times[phases - 1];
-						analysis->RecordStress(t, stress);
-					}
+				}
+				if (phase == phases - 1 && mode != 1) {
+					queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
+					t += delta_t;
+					analysis->RecordStress(t, stress);
 				}
 			}
 		}

@@ -29,7 +29,7 @@ __kernel void validation (
 				if (*phase == 1) {
 					*stress = 0;
 					for (int i = 0; i < *particles; i++) {
-						*stress -= stress_array[i]; 
+						*stress += stress_array[i]; 
 					}
 					*stress = *stress / volume;
 				}
@@ -41,7 +41,7 @@ __kernel void validation (
 				if (*phase == 1) {
 					*stress = 0;
 					for (int i = 0; i < *particles; i++) {
-						*stress -= stress_array[i]; 
+						*stress += stress_array[i]; 
 					}
 					*stress = *stress / volume;
 				}
@@ -59,7 +59,7 @@ __kernel void validation (
 				if (*phase == 2) {
 					*stress = 0;
 					for (int i = 0; i < *particles; i++) {
-						*stress -= stress_array[i]; 
+						*stress += stress_array[i]; 
 					}
 					*stress = *stress / volume;
 				}
@@ -77,7 +77,7 @@ __kernel void validation (
 				if (*phase == 2) {
 					*stress = 0;
 					for (int i = 0; i < *particles; i++) {
-						*stress -= stress_array[i]; 
+						*stress += stress_array[i]; 
 					}
 					*stress = *stress / volume;
 				}
@@ -95,7 +95,7 @@ __kernel void validation (
 				if (*phase == 2) {
 					*stress = 0;
 					for (int i = 0; i < *particles; i++) {
-						*stress -= stress_array[i]; 
+						*stress += stress_array[i]; 
 					}
 					*stress = *stress / volume;
 				}

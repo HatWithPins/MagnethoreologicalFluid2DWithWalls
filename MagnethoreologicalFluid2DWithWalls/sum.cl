@@ -36,7 +36,7 @@ __kernel void sum (
 			z_1[particle_0] += top_repulsion + bottom_repulsion;
 
 			if (((*mode == 2 || *mode == 3) && phase == 1) || phase == 2) {
-				stress = z_0[particle_0]/(*length);
+				stress = z_0[particle_0];
 				x_1[particle_0] += stress;
 			}
 		}
@@ -59,10 +59,10 @@ __kernel void sum (
 			}
 		}
 
+		stress_array[particle_0] = x_1[particle_0];
 		x_1[particle_0] = (*delta_t)*x_1[particle_0];
 		y_1[particle_0] = (*delta_t)*y_1[particle_0];
 		z_1[particle_0] = (*delta_t)*z_1[particle_0];
-		stress_array[particle_0] = x_1[particle_0];
 
 		r = (sqrt(x_1[particle_0]*x_1[particle_0] + y_1[particle_0]*y_1[particle_0] + z_1[particle_0]*z_1[particle_0]));
 		if (r > 0.03){ *valid = 0; }
