@@ -41,50 +41,50 @@ int main()
 					int phases;
 					int dimensions;
 
-					switch (mode) {
-					case 1:
-						dimensions = 2;
-						times[0] = 500;
-						times[1] = 500;
-						times[2] = 500;
-						phases = 1;
-						break;
-					case 2:
-						dimensions = 3;
-						times[0] = 500;
-						times[1] = 550;
-						times[2] = 550;
-						phases = 2;
-						break;
-					case 3:
-						dimensions = 3;
-						times[0] = 500;
-						times[1] = 550;
-						times[2] = 550;
-						phases = 2;
-						break;
-					case 4:
-						dimensions = 3;
-						times[0] = 500;
-						times[1] = 1000;
-						times[2] = 1050;
-						phases = 3;
-						break;
-					case 5:
-						dimensions = 3;
-						times[0] = 500;
-						times[1] = 1000;
-						times[2] = 1050;
-						phases = 3;
-						break;
-					case 6:
-						dimensions = 3;
-						times[0] = 500;
-						times[1] = 1000;
-						times[2] = 1050;
-						phases = 3;
-						break;
-					}
+				switch (mode) {
+				case 1:
+					dimensions = 2;
+					times[0] = 500;
+					times[1] = 500;
+					times[2] = 500;
+					phases = 1;
+					break;
+				case 2:
+					dimensions = 3;
+					times[0] = 500;
+					times[1] = 550;
+					times[2] = 550;
+					phases = 2;
+					break;
+				case 3:
+					dimensions = 3;
+					times[0] = 500;
+					times[1] = 550;
+					times[2] = 550;
+					phases = 2;
+					break;
+				case 4:
+					dimensions = 3;
+					times[0] = 500;
+					times[1] = 1000;
+					times[2] = 1050;
+					phases = 3;
+					break;
+				case 5:
+					dimensions = 3;
+					times[0] = 500;
+					times[1] = 1000;
+					times[2] = 1050;
+					phases = 3;
+					break;
+				case 6:
+					dimensions = 3;
+					times[0] = 500;
+					times[1] = 1000;
+					times[2] = 1050;
+					phases = 3;
+					break;
+				}
 
 					int box_length = Length(particles, dimensions, concentration);
 					double delta_t = 0.001;
