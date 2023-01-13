@@ -273,6 +273,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 			queue.enqueueNDRangeKernel(forces_kernel, cl::NullRange, global_long, cl::NullRange);
 			queue.enqueueNDRangeKernel(sum_kernel, cl::NullRange, global_short, cl::NullRange);
 			queue.enqueueNDRangeKernel(distances_kernel, cl::NullRange, global_long, cl::NullRange);
+			queue.enqueueReadBuffer(buffer_valid, CL_TRUE, 0, sizeof(int), &valid);
 			queue.enqueueNDRangeKernel(validation_kernel, cl::NullRange, global_short, cl::NullRange);
 
 			queue.enqueueReadBuffer(buffer_time, CL_TRUE, 0, sizeof(double), &time);
@@ -292,13 +293,6 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 				}
 				analysis->PreAnalysis(x_0, y_0, z_0, time);
 				end_simulation = time > max_time;
-
-				if (phase == phases - 1 && mode != 1) {
-					queue.enqueueReadBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
-					queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
-					t += delta_t;
-					analysis->RecordStress(t, stress);
-				}
 			}
 			else if (current_lap == laps - 1) {
 				queue.enqueueReadBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
@@ -319,11 +313,13 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 					end_simulation = time > max_time;
 					stretch = 0;
 				}
-				if (phase == phases - 1 && mode != 1) {
-					queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
-					t += delta_t;
-					analysis->RecordStress(t, stress);
-				}
+			}
+			if (phase == phases - 1 && mode != 1 && valid == 1) {
+				queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
+				queue.enqueueReadBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
+				t += delta_t;
+				analysis->RecordStress(t, stress);
+				end_simulation = time > max_time;
 			}
 		}
 	}

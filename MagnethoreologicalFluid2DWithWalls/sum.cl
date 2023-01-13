@@ -18,6 +18,7 @@ __kernel void sum (
 		int initial_index_sum = initial_indices_sum[particle_0];
 		int last_index_sum = last_indices_sum[particle_0];
 		int index_sub = particle_0 - 1;
+		double wall_velocity = (*length);
 
 		x_1[particle_0] = 0;
 		y_1[particle_0] = 0;
@@ -35,9 +36,8 @@ __kernel void sum (
 			bottom_repulsion = A * exp(-B * (bottom_separation - 1));
 			z_1[particle_0] += top_repulsion + bottom_repulsion;
 
-			if (((*mode == 2 || *mode == 3) && phase == 1) || phase == 2) {
-				stress = z_0[particle_0];
-				x_1[particle_0] += stress;
+			if (((*mode == 2 || *mode == 3) && *phase == 1) || *phase == 2) {
+				stress = z_0[particle_0] * wall_velocity / (*length);
 			}
 		}
 
@@ -59,7 +59,8 @@ __kernel void sum (
 			}
 		}
 
-		stress_array[particle_0] = x_1[particle_0];
+		stress_array[particle_0] = x_1[particle_0]*z_0[particle_0];
+		x_1[particle_0] += stress;
 		x_1[particle_0] = (*delta_t)*x_1[particle_0];
 		y_1[particle_0] = (*delta_t)*y_1[particle_0];
 		z_1[particle_0] = (*delta_t)*z_1[particle_0];

@@ -25,13 +25,15 @@ int main()
 {
 	auto start = high_resolution_clock::now();
 
-	std::thread threads[10];
+	std::thread threads[6];
 	int repetitions = 5;
 	double numbers[6] = { 0.4, 0.6, 0.8, 1.0, 1.5, 2.0 };
-	for (int i = 0; i < 5; i++) { //Mode
-		for (int j = 0; j < 6; j++) { //RA
-			for (int k = 0; k < 3; k++) { //Ma
-				for (int l = 0; l < repetitions; l++) {
+
+	for (int rep = 0; rep < repetitions; rep++) {
+		for (int i = 0; i < 5; i++) { //Mode
+			for (int j = 0; j < 6; j++) { //RA
+				for (int k = 0; k < 3; k++) { //Ma
+
 					int mode = i + 2;
 					int particles = 400;
 					double concentration = 0.07;
@@ -85,13 +87,12 @@ int main()
 					}
 
 					int box_length = Length(particles, dimensions, concentration);
-					int repetitions = 5;
 					double delta_t = 0.001;
 
-					threads[2 * l] = std::thread(Simulation, mode, phases, particles, dimensions, box_length, numbers[2 * k], numbers[j], delta_t, l, times);
-					threads[2 * l + 1] = std::thread(Simulation, mode, phases, particles, dimensions, box_length, numbers[2 * k + 1], numbers[j], delta_t, l, times);
+					threads[2 * k] = std::thread(Simulation, mode, phases, particles, dimensions, box_length, numbers[2 * k], numbers[j], delta_t, rep, times);
+					threads[2 * k + 1] = std::thread(Simulation, mode, phases, particles, dimensions, box_length, numbers[2 * k + 1], numbers[j], delta_t, rep, times);
 				}
-				for (int l = 0; l < 2 * repetitions; l++) {
+				for (int l = 0; l < 6; l++) {
 					threads[l].join();
 				}
 			}
