@@ -31,7 +31,7 @@ __kernel void validation (
 					for (int i = 0; i < *particles; i++) {
 						*stress += stress_array[i]; 
 					}
-					*stress = *stress / volume;
+					*stress = -(*stress) / volume;
 				}
 			} else if (*mode == 3) {
 				magnetic_field[0] = 0;
@@ -43,7 +43,7 @@ __kernel void validation (
 					for (int i = 0; i < *particles; i++) {
 						*stress += stress_array[i]; 
 					}
-					*stress = *stress / volume;
+					*stress = -(*stress) / volume;
 				}
 			} else if (*mode == 4) {
 				if (*phase == 0) {
@@ -61,7 +61,7 @@ __kernel void validation (
 					for (int i = 0; i < *particles; i++) {
 						*stress += stress_array[i]; 
 					}
-					*stress = *stress / volume;
+					*stress = -(*stress) / volume;
 				}
 			} else if (*mode == 5) {
 				if (*phase == 0) {
@@ -79,7 +79,7 @@ __kernel void validation (
 					for (int i = 0; i < *particles; i++) {
 						*stress += stress_array[i]; 
 					}
-					*stress = *stress / volume;
+					*stress = -(*stress) / volume;
 				}
 			} else {
 				if (*phase == 0) {
@@ -97,7 +97,7 @@ __kernel void validation (
 					for (int i = 0; i < *particles; i++) {
 						*stress += stress_array[i]; 
 					}
-					*stress = *stress / volume;
+					*stress = -(*stress) / volume;
 				}
 			}
 		}
