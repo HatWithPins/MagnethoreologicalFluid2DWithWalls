@@ -29,7 +29,7 @@ int main()
 	int repetitions = 5;
 	double numbers[6] = { 0.4, 0.6, 0.8, 1.0, 1.5, 2.0 };
 
-	for (int rep = 0; rep < repetitions; rep++) {
+	for (int rep; rep < repetitions; rep++) {
 		for (int i = 0; i < 5; i++) { //Mode
 			for (int j = 0; j < 6; j++) { //RA
 				for (int k = 0; k < 3; k++) { //Ma
