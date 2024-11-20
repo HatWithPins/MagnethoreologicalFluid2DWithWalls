@@ -23,11 +23,11 @@ int Length(int particles, int dimensions, double concentration) {
 
 void SimulationThread(double mason) {
 	
-	int repetitions = 1;
+	int repetitions = 5;
 	double numbers[6] = { 0.4, 0.6, 0.8, 1.0, 1.5, 2.0 };
 
 	for (int rep = 0; rep < repetitions; rep++) {
-		for (int i = 2; i < 5; i++) { //Mode
+		for (int i = 2; i < 7; i++) { //Mode
 			for (int j = 0; j < 6; j++) { //RA
 				int mode = i;
 				int particles = 400;

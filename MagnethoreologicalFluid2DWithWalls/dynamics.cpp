@@ -1,3 +1,6 @@
+#define CL_HPP_ENABLE_EXCEPTIONS
+#define CL_HPP_TARGET_OPENCL_VERSION 200
+
 #include "dynamics.h"
 #include <iostream>
 #include <vector>
@@ -10,14 +13,15 @@
 #include <stdlib.h>
 #include <sstream>
 #include <math.h>
-#include <CL/cl.hpp>
+#include <CL/opencl.hpp>
 #include <thread>
 #include <cmath>
 #include "box.h"
 #include "analysis.h"
 
 using namespace std::chrono;
-void Simulation(int mode, int phases, int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_times[3]) {
+using namespace cl;
+void Simulation(int mode, int phases, int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_times[3], bool keep_positions) {
 	auto start = high_resolution_clock::now();
 	std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", mode " + std::to_string(mode) + " and repetition " + std::to_string(repetition) + "\n";
 
@@ -85,11 +89,8 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	if (repetition == 0) box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 
 	std::vector<double> get_x = box->ReturnX();
-	double* x_0 = get_x.data();
 	std::vector<double> get_y = box->ReturnY();
-	double* y_0 = get_y.data();
 	std::vector<double> get_z = box->ReturnZ();
-	double* z_0 = get_z.data();
 
 	double r_min = 1 - log(100.0) / 10;
 
@@ -110,9 +111,18 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	cl::Context context({ device });
 	cl::CommandQueue queue = cl::CommandQueue(context, device);
 
-	cl::Buffer buffer_x_0 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
-	cl::Buffer buffer_y_0 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
-	cl::Buffer buffer_z_0 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
+	// SVM allocations
+	cl::SVMAllocator<double, cl::SVMTraitFine<>> svmAlloc(context);
+	double* x_0 = svmAlloc.allocate(particles);
+	double* y_0 = svmAlloc.allocate(particles);
+	double* z_0 = svmAlloc.allocate(particles);
+	for (int i = 0; i < particles; i++) {
+		x_0[i] = get_x.data()[i];
+		y_0[i] = get_y.data()[i];
+		z_0[i] = get_z.data()[i];
+	}
+
+
 	cl::Buffer buffer_magnetic_field = cl::Buffer(context, CL_MEM_READ_WRITE, 3 * sizeof(double));
 	cl::Buffer buffer_mode = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_phase = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
@@ -194,9 +204,9 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	cl::Kernel distances_kernel(distances_program, "distances");
 	cl::Kernel validation_kernel(validation_program, "validation");
 
-	sum_kernel.setArg(0, buffer_x_0);
-	sum_kernel.setArg(1, buffer_y_0);
-	sum_kernel.setArg(2, buffer_z_0);
+	sum_kernel.setArg(0, x_0);
+	sum_kernel.setArg(1, y_0);
+	sum_kernel.setArg(2, z_0);
 	sum_kernel.setArg(3, buffer_dimensions);
 	sum_kernel.setArg(4, buffer_length);
 	sum_kernel.setArg(5, buffer_particles);
@@ -215,9 +225,9 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	sum_kernel.setArg(18, buffer_phase);
 	sum_kernel.setArg(19, buffer_stress_array);
 
-	forces_kernel.setArg(0, buffer_x_0);
-	forces_kernel.setArg(1, buffer_y_0);
-	forces_kernel.setArg(2, buffer_z_0);
+	forces_kernel.setArg(0, x_0);
+	forces_kernel.setArg(1, y_0);
+	forces_kernel.setArg(2, z_0);
 	forces_kernel.setArg(3, buffer_dimensions);
 	forces_kernel.setArg(4, buffer_magnetic_field);
 	forces_kernel.setArg(5, buffer_length);
@@ -229,9 +239,9 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	forces_kernel.setArg(11, buffer_forces_y);
 	forces_kernel.setArg(12, buffer_forces_z);
 
-	distances_kernel.setArg(0, buffer_x_0);
-	distances_kernel.setArg(1, buffer_y_0);
-	distances_kernel.setArg(2, buffer_z_0);
+	distances_kernel.setArg(0, x_0);
+	distances_kernel.setArg(1, y_0);
+	distances_kernel.setArg(2, z_0);
 	distances_kernel.setArg(3, buffer_particle_0);
 	distances_kernel.setArg(4, buffer_particle_1);
 	distances_kernel.setArg(5, buffer_length);
@@ -239,9 +249,9 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	distances_kernel.setArg(7, buffer_dimensions);
 
 	validation_kernel.setArg(0, buffer_valid);
-	validation_kernel.setArg(1, buffer_x_0);
-	validation_kernel.setArg(2, buffer_y_0);
-	validation_kernel.setArg(3, buffer_z_0);
+	validation_kernel.setArg(1, x_0);
+	validation_kernel.setArg(2, y_0);
+	validation_kernel.setArg(3, z_0);
 	validation_kernel.setArg(4, buffer_x_1);
 	validation_kernel.setArg(5, buffer_y_1);
 	validation_kernel.setArg(6, buffer_z_1);
@@ -269,6 +279,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	queue.enqueueWriteBuffer(buffer_matrix_size, CL_TRUE, 0, sizeof(int), &matrix_size);
 	queue.enqueueWriteBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
 	queue.enqueueWriteBuffer(buffer_original_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
+	queue.enqueueWriteBuffer(buffer_original_delta_t, CL_TRUE, 0, sizeof(double), &original_delta_t);
 	queue.enqueueWriteBuffer(buffer_mason, CL_TRUE, 0, sizeof(double), &mason);
 	queue.enqueueWriteBuffer(buffer_amplitude_relationship, CL_TRUE, 0, sizeof(double), &amplitude_relationship);
 	queue.enqueueWriteBuffer(buffer_time, CL_TRUE, 0, sizeof(double), &time);
@@ -277,9 +288,6 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	queue.enqueueWriteBuffer(buffer_particle_1, CL_TRUE, 0, matrix_size * sizeof(int), particle_1);
 	queue.enqueueWriteBuffer(buffer_initial_indices_sum, CL_TRUE, 0, particles * sizeof(int), initial_indices_sum);
 	queue.enqueueWriteBuffer(buffer_last_indices_sum, CL_TRUE, 0, particles * sizeof(int), last_indices_sum);
-	queue.enqueueWriteBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
-	queue.enqueueWriteBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
-	queue.enqueueWriteBuffer(buffer_z_0, CL_TRUE, 0, particles * sizeof(double), z_0);
 
 	for (int phase = 0; phase < phases; phase++) {
 		max_time = max_times[phase];
@@ -300,10 +308,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 			if (current_lap > lap) {
 				counter++;
 				lap = current_lap;
-				queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
-				queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
-				queue.enqueueReadBuffer(buffer_z_0, CL_TRUE, 0, particles * sizeof(double), z_0);
-				if (repetition == 0) {
+				if (keep_positions) {
 					box->SetX(x_0);
 					box->SetY(y_0);
 					box->SetZ(z_0);
@@ -318,10 +323,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 
 				if (stretch > step) {
 					counter++;
-					queue.enqueueReadBuffer(buffer_x_0, CL_TRUE, 0, particles * sizeof(double), x_0);
-					queue.enqueueReadBuffer(buffer_y_0, CL_TRUE, 0, particles * sizeof(double), y_0);
-					queue.enqueueReadBuffer(buffer_z_0, CL_TRUE, 0, particles * sizeof(double), z_0);
-					if (repetition == 0) {
+					if (keep_positions) {
 						box->SetX(x_0);
 						box->SetY(y_0);
 						box->SetZ(z_0);
@@ -333,8 +335,6 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 				}
 			}
 			if (phase == phases - 1 && mode != 1 && valid == 1) {
-				queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
-				queue.enqueueReadBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
 				t += delta_t;
 				analysis->RecordStress(t, stress);
 				end_simulation = time > max_time;
@@ -342,7 +342,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 		}
 	}
 
-	if (repetition == 0) {
+	if (keep_positions) {
 		box->SetX(x_0);
 		box->SetY(y_0);
 		box->SetZ(z_0);
@@ -359,6 +359,10 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	delete[] last_indices_sum;
 	delete[] particle_0;
 	delete[] particle_1;
+
+	svmAlloc.deallocate(x_0, particles);
+	svmAlloc.deallocate(y_0, particles);
+	svmAlloc.deallocate(z_0, particles);
 
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<seconds>(stop - start);

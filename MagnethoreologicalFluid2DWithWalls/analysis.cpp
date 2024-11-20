@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <sstream>
 #include <math.h>
-#include <CL/cl.hpp>
 #include <thread>
 #include <cmath>
 
@@ -87,7 +86,7 @@ std::vector<int> Analysis::BFS(int* adjacency) {
 			}
 		}
 
-		chain[list[0]] = min(node, chain[list[0]]);
+		chain[list[0]] = std::min(node, chain[list[0]]);
 
 		list.erase(list.begin());
 
@@ -200,8 +199,8 @@ std::vector<double> Analysis::Linearity(double* x, double* y, double* z, std::ve
 		}
 
 
-		I_max = (dimensions_ == 3) ? abs(max(lambda_1, lambda_2, lambda_3)) : abs(max(lambda_1, lambda_2));
-		I_min = (dimensions_ == 3) ? abs(min(lambda_1, lambda_2, lambda_3)) : abs(min(lambda_1, lambda_2));
+		I_max = (dimensions_ == 3) ? abs(std::max({ lambda_1, lambda_2, lambda_3 })) : abs(std::max(lambda_1, lambda_2));
+		I_min = (dimensions_ == 3) ? abs(std::min({ lambda_1, lambda_2, lambda_3 })) : abs(std::min(lambda_1, lambda_2));
 
 		linear = (sqrt(I_max) - sqrt(I_min)) / (sqrt(I_max) + sqrt(I_min));
 

@@ -3,8 +3,8 @@
 #
 cmake_minimum_required (VERSION 3.8)
 
-find_package (OpenCL)
-include_directories( ${OPENCL_INCLUDE_DIR} )
+find_package (OpenCL 2.0 EXACT REQUIRED)
+include_directories( ${OpenCL_INCLUDE_DIR} )
 LINK_DIRECTORIES(${OpenCL_LIBRARY})
 if( NOT OpenCL_FOUND )
 	MESSAGE( SEND_ERROR "OpenCL not found. Install SDK from NVidia (CUDA), AMD or Intel" )
