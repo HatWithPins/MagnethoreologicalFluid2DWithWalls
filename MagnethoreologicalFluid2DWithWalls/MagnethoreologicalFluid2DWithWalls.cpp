@@ -111,7 +111,7 @@ int main(int argc, char** argv)
 				{
 					ma = stod(argument.substr(pos + 1));
 					if (ma < 0) {
-						cout << "Error, ma must be greater than 0, but received " << ma << endl;
+						cout << "Error, ma must be greater or equal than 0, but received " << ma << endl;
 						return -1;
 					}
 				}
@@ -153,7 +153,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	std::thread threads[6];
+	std::thread threads[5];
 
 	for (int i = 0; i < repetitions; i++) {
 		threads[i] = std::thread(SimulationThread, i, particles, ma, ar, dimensions, concentration, field_direction);
