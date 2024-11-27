@@ -3,7 +3,7 @@
 #
 cmake_minimum_required (VERSION 3.8)
 
-find_package (OpenCL 2.0 EXACT REQUIRED)
+find_package (OpenCL)
 include_directories( ${OpenCL_INCLUDE_DIR} )
 LINK_DIRECTORIES(${OpenCL_LIBRARY})
 if( NOT OpenCL_FOUND )

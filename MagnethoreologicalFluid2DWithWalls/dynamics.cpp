@@ -21,12 +21,12 @@
 
 using namespace std::chrono;
 using namespace cl;
-void Simulation(int mode, int phases, int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_times[3], bool keep_positions) {
+void Simulation(int field_direction, int phases, int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_times[3], bool keep_positions) {
 	auto start = high_resolution_clock::now();
-	std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", mode " + std::to_string(mode) + " and repetition " + std::to_string(repetition) + "\n";
+	std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction = " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + "\n";
 
 	double magnetic_field[3];
-	if (dimensions == 3 && mode != 6 && mode != 3) {
+	if (dimensions == 3 && field_direction == 1) {
 		magnetic_field[0] = 0.0;
 		magnetic_field[1] = 0.0;
 		magnetic_field[2] = 1.0;
@@ -37,6 +37,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 		magnetic_field[2] = 0.0;
 	}
 
+	double frecuency = mason + (mason < 0.00000001) * 0.1;
 	double delta_t = original_delta_t;
 	double pi = 3.14159265359;
 	double step = 2 * pi / (mason * 360);
@@ -51,6 +52,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	int window = 5;
 	int matrix_size = particles * (particles - 1) / 2;
 	int valid = 1;
+	int mode = 0;
 	int* initial_indices_sum = new int[particles];
 	int* last_indices_sum = new int[particles];
 	int* particle_0 = new int[matrix_size];
@@ -83,7 +85,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 		}
 	}
 
-	std::string tag = "mode-" + std::to_string(mode);
+	std::string tag = "field_direction-" + std::to_string(field_direction);
 	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window, dimensions);
 	Box* box = new Box(particles, length, dimensions);
 	if (repetition == 0) box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
@@ -128,6 +130,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	cl::Buffer buffer_phase = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_dimensions = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_length = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
+	cl::Buffer buffer_field_direction = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_particles = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int));
 	cl::Buffer buffer_delta_t = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(double));
 	cl::Buffer buffer_original_delta_t = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(double));
@@ -268,14 +271,15 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 	validation_kernel.setArg(17, buffer_stress);
 	validation_kernel.setArg(18, buffer_particles);
 	validation_kernel.setArg(19, buffer_length);
+	validation_kernel.setArg(20, buffer_field_direction);
 
 	cl::NDRange global_long(matrix_size);
 	cl::NDRange global_short(particles);
 
-	queue.enqueueWriteBuffer(buffer_mode, CL_TRUE, 0, sizeof(int), &mode);
 	queue.enqueueWriteBuffer(buffer_particles, CL_TRUE, 0, sizeof(int), &particles);
 	queue.enqueueWriteBuffer(buffer_dimensions, CL_TRUE, 0, sizeof(int), &dimensions);
 	queue.enqueueWriteBuffer(buffer_length, CL_TRUE, 0, sizeof(int), &length);
+	queue.enqueueWriteBuffer(buffer_field_direction, CL_TRUE, 0, sizeof(int), &field_direction);
 	queue.enqueueWriteBuffer(buffer_matrix_size, CL_TRUE, 0, sizeof(int), &matrix_size);
 	queue.enqueueWriteBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
 	queue.enqueueWriteBuffer(buffer_original_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
@@ -291,8 +295,10 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 
 	for (int phase = 0; phase < phases; phase++) {
 		max_time = max_times[phase];
-		laps = ceil(max_time * mason / (2 * pi));
+		laps = ceil(max_time * frecuency / (2 * pi));
 		queue.enqueueWriteBuffer(buffer_phase, CL_TRUE, 0, sizeof(int), &phase);
+		mode = phase == phases - 1;
+		queue.enqueueWriteBuffer(buffer_mode, CL_TRUE, 0, sizeof(int), &mode);
 		end_simulation = false;
 
 		while (!end_simulation) {
@@ -301,10 +307,9 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 			queue.enqueueNDRangeKernel(distances_kernel, cl::NullRange, global_long, cl::NullRange);
 			queue.enqueueReadBuffer(buffer_valid, CL_TRUE, 0, sizeof(int), &valid);
 			queue.enqueueNDRangeKernel(validation_kernel, cl::NullRange, global_short, cl::NullRange);
-
 			queue.enqueueReadBuffer(buffer_time, CL_TRUE, 0, sizeof(double), &time);
 
-			current_lap = floor(time * mason / (2 * pi));
+			current_lap = floor(time * frecuency / (2 * pi));
 			if (current_lap > lap) {
 				counter++;
 				lap = current_lap;
@@ -334,7 +339,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 					stretch = 0;
 				}
 			}
-			if (phase == phases - 1 && mode != 1 && valid == 1) {
+			if (phase == phases - 1 && valid == 1) {
 				t += delta_t;
 				analysis->RecordStress(t, stress);
 				end_simulation = time > max_time;
@@ -349,9 +354,7 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 		box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 	}
 	analysis->WriteAnalysis(repetition, tag);
-	if (mode != 1) {
-		analysis->WriteStress(repetition, tag);
-	}
+	analysis->WriteStress(repetition, tag);
 
 	delete box;
 	delete analysis;
@@ -366,5 +369,5 @@ void Simulation(int mode, int phases, int particles, int dimensions, int length,
 
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<seconds>(stop - start);
-	std::cout << "Finishing simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", mode " + std::to_string(mode) + " and repetition " + std::to_string(repetition) + ". Took " + std::to_string(duration.count()) + " seconds.\n";
+	std::cout << "Finishing simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + ". Took " + std::to_string(duration.count()) + " seconds.\n";
 }

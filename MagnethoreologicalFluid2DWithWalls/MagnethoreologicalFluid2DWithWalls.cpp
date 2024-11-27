@@ -14,95 +14,152 @@ int Length(int particles, int dimensions, double concentration) {
 		length = cbrt(particles * (pi / 6) / concentration);
 	}
 	else if (dimensions == 2) {
-		double concentration_2d = (pi / 4) * pow(cbrt(6*concentration/pi), 2);
-		length = sqrt(particles / concentration_2d);
+		double concentration2d = (pi / 4) * pow(cbrt(6*concentration/pi), 2);
+		length = sqrt(particles / concentration2d);
 	}
 	
 	return length;
 }
 
-void SimulationThread(double mason) {
+void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, int field_direction) {
 	
-	int repetitions = 5;
-	double numbers[6] = { 0.4, 0.6, 0.8, 1.0, 1.5, 2.0 };
-
-	for (int rep = 0; rep < repetitions; rep++) {
-		for (int i = 2; i < 7; i++) { //Mode
-			for (int j = 0; j < 6; j++) { //RA
-				int mode = i;
-				int particles = 400;
-				double concentration = 0.07;
-				double times[3];
-				int phases;
-				int dimensions;
-
-				switch (mode) {
-				case 1:
-					dimensions = 2;
-					times[0] = 500;
-					times[1] = 500;
-					times[2] = 500;
-					phases = 1;
-					break;
-				case 2:
-					dimensions = 3;
-					times[0] = 500;
-					times[1] = 550;
-					times[2] = 550;
-					phases = 2;
-					break;
-				case 3:
-					dimensions = 3;
-					times[0] = 500;
-					times[1] = 550;
-					times[2] = 550;
-					phases = 2;
-					break;
-				case 4:
-					dimensions = 3;
-					times[0] = 500;
-					times[1] = 1000;
-					times[2] = 1050;
-					phases = 3;
-					break;
-				case 5:
-					dimensions = 3;
-					times[0] = 500;
-					times[1] = 1000;
-					times[2] = 1050;
-					phases = 3;
-					break;
-				case 6:
-					dimensions = 3;
-					times[0] = 500;
-					times[1] = 1000;
-					times[2] = 1050;
-					phases = 3;
-					break;
-				}
-
-				int box_length = Length(particles, dimensions, concentration);
-				double delta_t = 0.001;
-
-				Simulation(mode, phases, particles, dimensions, box_length, mason, numbers[j], delta_t, rep, times);
-			}
-		}
+	double times[3];
+	int phases;
+	if (mason > 0.0) {
+		phases = 3;
+		times[0] = 500.0;
+		times[1] = 1000.0;
+		times[2] = 1050.0;
 	}
+	else {
+		phases = 2;
+		times[0] = 500.0;
+		times[1] = 550.0;
+		times[2] = 550.0;
+	}
+
+	int boxLength = Length(particles, dimensions, concentration);
+	double deltaT = 0.001;
+
+	Simulation(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times);
 }
 
-int main()
+int main(int argc, char** argv)
 {
 	auto start = high_resolution_clock::now();
 
-	std::thread threads[6];
-	double numbers[6] = { 0.4, 0.6, 0.8, 1.0, 1.5, 2.0 };
+	string argument;
+	size_t pos;
+	size_t check;
+	int repetitions = 1;
+	int particles = 400;
+	double ma = 0.0;
+	double ar = 0.0;
+	double concentration = 0.07;
+	int dimensions = 2;
+	//0, y direction, 1, z direction. 
+	int field_direction = 0;
+	int expectedArguments = 8;
+	vector<string> expectedArgumentsList = { "repetitions=", "particles=", "concentration=", "ma=", "ar=", "dimensions=", "field_direction="};
 
-	for (int k = 0; k < 3; k++) { //Ma
-		threads[2 * k] = std::thread(SimulationThread, numbers[2 * k]);
-		threads[2 * k + 1] = std::thread(SimulationThread ,numbers[2 * k + 1]);
+	if (argc > expectedArguments)
+	{
+		cout << "Error, expected " << expectedArguments - 1 << ", but received " << argc - 1 << endl;
+		return -1;
 	}
-	for (int l = 0; l < 6; l++) {
-		threads[l].join();
+
+	try
+	{
+		for (int i = 1; i < argc; i++)
+		{
+			argument = argv[i];
+			check = argument.find(expectedArgumentsList[i - 1]);
+			if (check < 0 || check > argument.size())
+			{
+				vector<string> exceptionVector = { argument, expectedArgumentsList[i - 1] };
+				throw(exceptionVector);
+			}
+			pos = argument.find("=");
+
+			try
+			{
+				if (argument.substr(0, pos) == "repetitions")
+				{
+					repetitions = stoi(argument.substr(pos + 1));
+					if (repetitions < 0 || repetitions > 5) {
+						cout << "Error, repetitions must be between 0 and 5, but received " << particles << endl;
+						return -1;
+					}
+				}
+				else if (argument.substr(0, pos) == "particles")
+				{
+					particles = stoi(argument.substr(pos + 1));
+					if (particles < 2) {
+						cout << "Error, particles must be greater than 1, but received " << particles << endl;
+						return -1;
+					}
+				}
+				else if (argument.substr(0, pos) == "concentration")
+				{
+					concentration = stod(argument.substr(pos + 1));
+					if (concentration <= 0) {
+						cout << "Error, concentration must be greater than 0, but received " << concentration << endl;
+						return -1;
+					}
+				}
+				else if (argument.substr(0, pos) == "ma")
+				{
+					ma = stod(argument.substr(pos + 1));
+					if (ma < 0) {
+						cout << "Error, ma must be greater than 0, but received " << ma << endl;
+						return -1;
+					}
+				}
+				else if (argument.substr(0, pos) == "ar")
+				{
+					ar = stod(argument.substr(pos + 1));
+					if (ar < 0) {
+						cout << "Error, ar must be greater than 0, but received " << ar << endl;
+						return -1;
+					}
+				}
+				else if (argument.substr(0, pos) == "dimensions")
+				{
+					dimensions = stoi(argument.substr(pos + 1));
+					if (dimensions > 3 || dimensions < 2) {
+						cout << "Error, dimensions must be either 2 or 3, but received " << dimensions << endl;
+						return -1;
+					}
+				}
+				else if (argument.substr(0, pos) == "field_direction")
+				{
+					field_direction = stoi(argument.substr(pos + 1));
+					if (field_direction > 1 || field_direction < 0) {
+						cout << "Error, field_direction must be either 0 or 1, but received " << field_direction << endl;
+						return -1;
+					}
+				}
+			}
+			catch (const std::exception& e)
+			{
+				std::cerr << e.what() << '\n';
+				return -1;
+			}
+		}
+	}
+	catch (vector<string> errorVector)
+	{
+		cout << "Error, expected " << errorVector[1] << "something, but received " << errorVector[0] << endl;
+		return -1;
+	}
+
+	std::thread threads[6];
+
+	for (int i = 0; i < repetitions; i++) {
+		threads[i] = std::thread(SimulationThread, i, particles, ma, ar, dimensions, concentration, field_direction);
+	}
+	for (int i = 0; i < repetitions; i++) {
+		threads[i].join();
 	}
 
 	auto stop = high_resolution_clock::now();

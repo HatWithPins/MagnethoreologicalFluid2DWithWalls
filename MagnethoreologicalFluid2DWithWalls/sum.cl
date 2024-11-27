@@ -23,7 +23,7 @@ __kernel void sum (
 		x_1[particle_0] = 0;
 		y_1[particle_0] = 0;
 		z_1[particle_0] = 0;
-		if (*mode == 1) {
+		if (*dimensions == 2) {
 			top_separation = (*length) - y_0[particle_0] + 0.5;
 			top_repulsion = -A * exp(-B * (top_separation - 1));
 			bottom_separation = y_0[particle_0] + 0.5;
@@ -36,7 +36,7 @@ __kernel void sum (
 			bottom_repulsion = A * exp(-B * (bottom_separation - 1));
 			z_1[particle_0] += top_repulsion + bottom_repulsion;
 
-			if (((*mode == 2 || *mode == 3) && *phase == 1) || *phase == 2) {
+			if (*mode == 1) {
 				stress = z_0[particle_0] * wall_velocity / (*length);
 			}
 		}
