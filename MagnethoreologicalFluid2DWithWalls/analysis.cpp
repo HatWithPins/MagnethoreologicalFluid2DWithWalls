@@ -3,14 +3,12 @@
 #include <vector>
 #include <algorithm>
 #include <memory>
-#include <chrono>
 #include <random>
 #include <fstream>
 #include <string>
 #include <stdlib.h>
 #include <sstream>
 #include <math.h>
-#include <thread>
 #include <cmath>
 
 
@@ -366,14 +364,26 @@ bool Analysis::EndSimulation() {
 }
 
 
-Analysis::Analysis(double mason, double amplitude_relationship, int particles, int length, int window, int dimensions) {
+Analysis::Analysis(double mason, double amplitude_relationship, int particles, int length, int window, int dimensions, int field_direction) {
 	mason_ = mason;
 	amplitude_relationship_ = amplitude_relationship;
 	particles_ = particles;
 	length_ = length;
 	window_ = window;
 	dimensions_ = dimensions;
+	field_direction_ = field_direction;
 	iteration_ = 0;
+
+	if (dimensions_ == 3 && field_direction_ == 1) {
+		magnetic_field[0] = 0.0;
+		magnetic_field[1] = 0.0;
+		magnetic_field[2] = 1.0;
+	}
+	else {
+		magnetic_field[0] = 0.0;
+		magnetic_field[1] = 1.0;
+		magnetic_field[2] = 0.0;
+	}
 }
 Analysis::~Analysis() {
 	micro_chains.~vector();
@@ -447,6 +457,44 @@ bool Analysis::PreAnalysis(double* x, double* y, double* z, double time) {
 	return false;
 }
 
+void Analysis::Connectivity(double* x, double* y, double* z) {
+	int* adjacency = Adjacency(x, y, z, micro_structure_separation);
+	double modulus;
+	double dot_product;
+	double u[3];
+	double theta;
+	std::vector<double> connectivity(90);
+	int idx;
+
+	for (int i = 0; i < 90; i++) {
+		connectivity[i] = 0;
+	}
+
+	for (int i = 0; i < particles_; i++) {
+		for (int j = i; j < particles_; j++) {
+			if (adjacency[i * particles_ + j] == 1 && i != j) {
+				u[0] = x[j] - x[i];
+				u[1] = y[j] - y[i];
+				u[2] = z[j] - z[i];
+
+				modulus = sqrt(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
+				dot_product = u[0] * magnetic_field[0] + u[1] * magnetic_field[1] + u[2] * magnetic_field[2];
+				theta = abs(asin(dot_product/modulus))*180.0/pi;
+				idx = static_cast <int> (floor(theta));
+				connectivity[idx] = connectivity[idx]++;
+			}
+		}
+	}
+
+	for (int i = 0; i < 90; i++) {
+		connectivity[i] = connectivity[i] / (particles_ - 1);
+	}
+
+	connectivity_vector.push_back(connectivity);
+	delete adjacency;
+	connectivity.~vector();
+}
+
 void Analysis::RecordStress(double t, double stress) {
 	stress_times.push_back(t);
 	stress_vector.push_back(stress);
@@ -459,6 +507,22 @@ void Analysis::WriteStress(int repetition, std::string tag) {
 		stress_file << stress_times[i] << "," << stress_vector[i] << "\n";
 	}
 	stress_file.close();
+}
+
+void Analysis::WriteConnectivity(int repetition, std::string tag) {
+	std::ofstream connectivity_file{ "analysis/connectivity-" + std::to_string(mason_) + "-" + std::to_string(amplitude_relationship_) + "-" + std::to_string(repetition) + "-" + tag + ".csv"};
+
+	connectivity_file << "t,connectivity\n";
+	for (int i = 0; i < iteration_; i++) {
+		connectivity_file << times[i];
+		
+		for (int j = 0; j < 90; j++) {
+			connectivity_file << "," << connectivity_vector[i][j];
+		}
+
+		connectivity_file << "\n";
+	}
+	connectivity_file.close();
 }
 
 void Analysis::WriteAnalysis(int repetition, std::string tag) {

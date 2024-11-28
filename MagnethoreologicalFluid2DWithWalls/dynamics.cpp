@@ -86,7 +86,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	}
 
 	std::string tag = "field_direction-" + std::to_string(field_direction);
-	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window, dimensions);
+	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window, dimensions, field_direction);
 	Box* box = new Box(particles, length, dimensions);
 	if (repetition == 0) box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 
@@ -320,6 +320,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 					box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 				}
 				analysis->PreAnalysis(x_0, y_0, z_0, time);
+				analysis->Connectivity(x_0, y_0, z_0);
 				end_simulation = time > max_time;
 			}
 			else if (current_lap == laps - 1) {
@@ -335,6 +336,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 						box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 					}
 					analysis->PreAnalysis(x_0, y_0, z_0, time);
+					analysis->Connectivity(x_0, y_0, z_0);
 					end_simulation = time > max_time;
 					stretch = 0;
 				}
@@ -355,6 +357,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	}
 	analysis->WriteAnalysis(repetition, tag);
 	analysis->WriteStress(repetition, tag);
+	analysis->WriteConnectivity(repetition, tag);
 
 	delete box;
 	delete analysis;
