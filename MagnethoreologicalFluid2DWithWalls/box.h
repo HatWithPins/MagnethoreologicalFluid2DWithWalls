@@ -1,3 +1,13 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <chrono>
+#include <random>
+#include <fstream>
+#include <string>
+#include <math.h>
+#include <cmath>
+
 class Box {
 private:
 	int particles_;

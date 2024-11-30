@@ -1,4 +1,13 @@
 #include "box.h"
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <chrono>
+#include <random>
+#include <fstream>
+#include <string>
+#include <math.h>
+#include <cmath>
 
 void Box::InitialPositions() {
 	std::vector<int> initial_positions{};
