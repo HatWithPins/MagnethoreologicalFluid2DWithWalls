@@ -301,6 +301,12 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 		queue.enqueueWriteBuffer(buffer_mode, CL_TRUE, 0, sizeof(int), &mode);
 		end_simulation = false;
 
+		if (phases > 2 && phase == 1) {
+			queue.enqueueWriteBuffer(buffer_magnetic_field, CL_TRUE, 0, 3 * sizeof(double), &magnetic_field);
+			double perturbation = 0.0;
+			queue.enqueueWriteBuffer(buffer_mason, CL_TRUE, 0, sizeof(double), &perturbation);
+		}
+
 		while (!end_simulation) {
 			queue.enqueueNDRangeKernel(forces_kernel, cl::NullRange, global_long, cl::NullRange);
 			queue.enqueueNDRangeKernel(sum_kernel, cl::NullRange, global_short, cl::NullRange);

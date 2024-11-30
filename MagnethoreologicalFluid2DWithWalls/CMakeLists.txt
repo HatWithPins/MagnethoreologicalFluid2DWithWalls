@@ -11,7 +11,7 @@ if( NOT OpenCL_FOUND )
 endif( NOT OpenCL_FOUND )
 
 # Add source to this project's executable.
-add_executable (MagnethoreologicalFluid2DWithWalls "MagnethoreologicalFluid2DWithWalls.cpp" "MagnethoreologicalFluid2DWithWalls.h" "box.h" "dynamics.h" "analysis.h" "dynamics.cpp" "analysis.cpp")
+add_executable (MagnethoreologicalFluid2DWithWalls "MagnethoreologicalFluid2DWithWalls.cpp" "MagnethoreologicalFluid2DWithWalls.h" "box.h" "dynamics.h" "analysis.h" "dynamics.cpp" "analysis.cpp" "box.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET MagnethoreologicalFluid2DWithWalls PROPERTY CXX_STANDARD 20)
