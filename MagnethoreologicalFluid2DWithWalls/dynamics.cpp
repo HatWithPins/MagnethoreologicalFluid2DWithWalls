@@ -37,7 +37,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 		magnetic_field[2] = 0.0;
 	}
 
-	double frecuency = mason + (mason < 0.00000001) * 0.1;
+	double frecuency = mason + (mason < 0.00000001) * 1.0;
 	double delta_t = original_delta_t;
 	double pi = 3.14159265359;
 	double step = 2 * pi / (mason * 360);
@@ -349,6 +349,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 			}
 			if (phase == phases - 1 && valid == 1) {
 				t += delta_t;
+				queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
 				analysis->RecordStress(t, stress);
 				end_simulation = time > max_time;
 			}

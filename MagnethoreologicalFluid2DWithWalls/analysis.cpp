@@ -471,8 +471,8 @@ void Analysis::Connectivity(double* x, double* y, double* z) {
 	}
 
 	for (int i = 0; i < particles_; i++) {
-		for (int j = i; j < particles_; j++) {
-			if (adjacency[i * particles_ + j] == 1 && i != j) {
+		for (int j = i+1; j < particles_; j++) {
+			if (adjacency[i * particles_ + j] == 1) {
 				u[0] = x[j] - x[i];
 				u[1] = y[j] - y[i];
 				u[2] = z[j] - z[i];
@@ -481,7 +481,7 @@ void Analysis::Connectivity(double* x, double* y, double* z) {
 				dot_product = u[0] * magnetic_field[0] + u[1] * magnetic_field[1] + u[2] * magnetic_field[2];
 				theta = abs(asin(dot_product/modulus))*180.0/pi;
 				idx = static_cast <int> (floor(theta));
-				connectivity[idx] = connectivity[idx]++;
+				connectivity[idx]++;
 			}
 		}
 	}
@@ -512,7 +512,11 @@ void Analysis::WriteStress(int repetition, std::string tag) {
 void Analysis::WriteConnectivity(int repetition, std::string tag) {
 	std::ofstream connectivity_file{ "analysis/connectivity-" + std::to_string(mason_) + "-" + std::to_string(amplitude_relationship_) + "-" + std::to_string(repetition) + "-" + tag + ".csv"};
 
-	connectivity_file << "t,connectivity\n";
+	connectivity_file << "t";
+	for (int i = 1; i < 91; i++) {
+		connectivity_file << "," << i;
+	}
+	connectivity_file << "\n";
 	for (int i = 0; i < iteration_; i++) {
 		connectivity_file << times[i];
 		
