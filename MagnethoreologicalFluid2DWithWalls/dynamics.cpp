@@ -21,12 +21,12 @@
 
 using namespace std::chrono;
 using namespace cl;
-void Simulation(int field_direction, int phases, int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_times[3], bool keep_positions) {
+void Simulation(int field_direction, int phases, int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_times[3], bool keep_positions, bool load_positions) {
 	auto start = high_resolution_clock::now();
 	std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction = " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + "\n";
 
 	double magnetic_field[3];
-	if (dimensions == 3 && field_direction == 1) {
+	if (dimensions == 3) {
 		magnetic_field[0] = 0.0;
 		magnetic_field[1] = 0.0;
 		magnetic_field[2] = 1.0;
@@ -40,14 +40,23 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	double frecuency = mason + (mason < 0.00000001) * 1.0;
 	double delta_t = original_delta_t;
 	double pi = 3.14159265359;
+	//step divides a whole cycle depending on the frequency (mason number).
 	double step = 2 * pi / (mason * 360);
+	//strech tracks if the simulation overcame a step. This is used during the last phase of the simulation to keep track of the changes while applying stress.
 	double stretch = 0;
+	//Max time for a phase.
 	double max_time;
-	double time = 0;
+	//Current time of the simulation.
+	double time = 0 + max_times[phases - 2] * load_positions;
+	//Variable to keep track of the time during stress phase.
 	double t = 0;
+	//Number laps during a phase.
 	int laps;
+	//Variable to check if current_lap changed. Logic behind this: if current_lap > lap, then, we are in a new lap.
 	int lap = 0;
+	//Current lap of the phase.
 	int current_lap = 0;
+	//Counter to record stresses.
 	int counter = 0;
 	int window = 5;
 	int matrix_size = particles * (particles - 1) / 2;
@@ -88,7 +97,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	std::string tag = "field_direction-" + std::to_string(field_direction);
 	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window, dimensions, field_direction);
 	Box* box = new Box(particles, length, dimensions);
-	if (repetition == 0) box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
+	if (load_positions) box->ReadCsv("positions/positions-" + std::to_string(mason) + "-" + std::to_string(amplitude_relationship) + "-" + std::to_string(repetition) + "-" + std::to_string(0) + "-" + tag + ".csv");
 
 	std::vector<double> get_x = box->ReturnX();
 	std::vector<double> get_y = box->ReturnY();
@@ -293,7 +302,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	queue.enqueueWriteBuffer(buffer_initial_indices_sum, CL_TRUE, 0, particles * sizeof(int), initial_indices_sum);
 	queue.enqueueWriteBuffer(buffer_last_indices_sum, CL_TRUE, 0, particles * sizeof(int), last_indices_sum);
 
-	for (int phase = 0; phase < phases; phase++) {
+	for (int phase = 0 + (phases - 1)*load_positions; phase < phases; phase++) {
 		max_time = max_times[phase];
 		laps = ceil(max_time * frecuency / (2 * pi));
 		queue.enqueueWriteBuffer(buffer_phase, CL_TRUE, 0, sizeof(int), &phase);

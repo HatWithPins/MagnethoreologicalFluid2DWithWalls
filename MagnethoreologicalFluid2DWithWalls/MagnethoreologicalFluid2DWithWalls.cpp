@@ -21,7 +21,7 @@ int Length(int particles, int dimensions, double concentration) {
 	return length;
 }
 
-void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, int field_direction, int keep_positions) {
+void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, int field_direction, int keep_positions, int load_positions) {
 	
 	double times[3];
 	int phases;
@@ -41,7 +41,7 @@ void SimulationThread(int repetition, int particles, double mason, double ar, in
 	int boxLength = Length(particles, dimensions, concentration);
 	double deltaT = 0.001;
 
-	Simulation(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times, keep_positions);
+	Simulation(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times, keep_positions, load_positions);
 }
 
 int main(int argc, char** argv)
@@ -49,6 +49,7 @@ int main(int argc, char** argv)
 	auto start = high_resolution_clock::now();
 
 	string argument;
+	string path;
 	size_t pos;
 	size_t check;
 	int repetitions = 1;
@@ -60,8 +61,9 @@ int main(int argc, char** argv)
 	//0, y direction, 1, z direction. 
 	int field_direction = 0;
 	int keep_positions = 0;
-	int expectedArguments = 9;
-	vector<string> expectedArgumentsList = { "repetitions=", "particles=", "concentration=", "ma=", "ar=", "dimensions=", "field_direction=", "keep_positions="};
+	int load_positions = 0;
+	int expectedArguments = 10;
+	vector<string> expectedArgumentsList = { "repetitions=", "particles=", "concentration=", "ma=", "ar=", "dimensions=", "field_direction=", "keep_positions=", "load_positions=" };
 
 	if (argc > expectedArguments)
 	{
@@ -145,6 +147,14 @@ int main(int argc, char** argv)
 					keep_positions = stoi(argument.substr(pos + 1));
 					if (keep_positions > 1 || keep_positions < 0) {
 						cout << "Error, keep_positions must be either 0 or 1, but received " << keep_positions << endl;
+						return -1;
+					}
+				}
+				else if (argument.substr(0, pos) == "load_positions")
+				{
+					load_positions = stoi(argument.substr(pos + 1));
+					if (load_positions > 1 || load_positions < 0) {
+						cout << "Error, load_positions must be either 0 or 1, but received " << load_positions << endl;
 						return -1;
 					}
 				}

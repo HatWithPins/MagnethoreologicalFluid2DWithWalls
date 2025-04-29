@@ -34,9 +34,9 @@ __kernel void validation (
 					*stress = -(*stress) / volume;
 				}
 			} else if (*field_direction == 0) {
-				magnetic_field[0] = 0;
-				magnetic_field[1] = 1/sqrt((*amplitude_relationship)*sin((*mason)*(*t))*(*amplitude_relationship)*sin((*mason)*(*t)) + 1);
-				magnetic_field[2] = (*amplitude_relationship)*sin((*mason)*(*t))*magnetic_field[1];
+				magnetic_field[1] = 0;
+				magnetic_field[2] = 1/sqrt((*amplitude_relationship)*sin((*mason)*(*t))*(*amplitude_relationship)*sin((*mason)*(*t)) + 1);
+				magnetic_field[0] = (*amplitude_relationship)*sin((*mason)*(*t))*magnetic_field[1];
 
 				if (*mode == 1) {
 					*stress = 0;

@@ -8,6 +8,9 @@
 #include <string>
 #include <math.h>
 #include <cmath>
+#include <stdexcept>
+#include <sstream>
+#include <utility>
 
 void Box::InitialPositions() {
 	std::vector<int> initial_positions{};
@@ -114,4 +117,43 @@ void Box::SetZ(double* z) {
 	for (int i = 0; i < particles_; i++) {
 		positions_[2][i] = z[i];
 	}
+}
+
+void Box::ReadCsv(std::string path) {
+	std::string line, colname;
+	double val;
+	std::vector<std::pair<std::string, std::vector<double>>> result;
+	std::fstream initialPositionsCsv;
+
+	initialPositionsCsv.open(path, std::ios_base::in);
+	if(!initialPositionsCsv.is_open()) throw std::runtime_error("Could not open file");
+	
+	if (initialPositionsCsv.good())
+	{
+		std::getline(initialPositionsCsv, line);
+
+		std::stringstream ss(line);
+
+		while (std::getline(ss, colname, ',')) {
+			result.push_back({ colname, std::vector<double> {} });
+		}
+	}
+
+	int particle = 0;
+	while (std::getline(initialPositionsCsv, line))
+	{
+		std::stringstream ss(line);
+		int colIdx = 0;
+
+		while (ss >> val) {
+			positions_[colIdx][particle] = val;
+			if (ss.peek() == ',') ss.ignore();
+			colIdx++;
+		}
+
+		particle++;
+	}
+
+	initialPositionsCsv.close();
+	result.~vector();
 }

@@ -43,4 +43,6 @@ public:
 	void SetY(double* y);
 
 	void SetZ(double* z);
+
+	void ReadCsv(std::string path);
 };
