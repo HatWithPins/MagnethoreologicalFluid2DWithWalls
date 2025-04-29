@@ -20,6 +20,6 @@ is needed for compile and run OpenCL programs in AMD cards.
 **ma** is Mason number. If it's 0, then simulation only runs with DC field.\
 **ar** is the amplitude relationship between DC field and perturbation. Must be greater than 0.\
 **dimensions** can be 2 or 3.\
-**field_direction** can be 0, for DC field oriented in the y axis, or 1, for DC field oriented in the x axis.\
+**field_direction** can be 0, for DC field oriented in the x axis, or 1, for DC field oriented in the y axis.\
 **keep_positions** can be 0, for not recording positions, or 1 for doing so.\
 **load_positions** 0 for not loading previous positions, 1 for loading. Not fully implemented, ignore it at this time.
