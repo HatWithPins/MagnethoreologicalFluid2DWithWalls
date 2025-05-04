@@ -47,7 +47,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	//Max time for a phase.
 	double max_time;
 	//Current time of the simulation.
-	double time = 0 + max_times[phases - 2] * load_positions;
+	double time = max_times[phases - 2] * load_positions;
 	//Variable to keep track of the time during stress phase.
 	double t = 0;
 	//Number laps during a phase.
@@ -68,6 +68,14 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	int* particle_1 = new int[matrix_size];
 	bool end_simulation;
 	double stress = 0;
+	int file_to_load = ceil(max_times[0] * frecuency / (2 * pi)) + ceil(max_times[1] * frecuency / (2 * pi)) + 2 * round(1 / step);
+	double wall_velocity = length;
+	//These variables are meant for creep experiment. First one is to set if we are in relaxation time, 0, or not, 1.
+	int relaxation = 1;
+	//Duration of stress depending on field direction. To avoid breaking the structures.
+	double creep_time = 0.2 * (field_direction == 0) + 0.3 * (field_direction == 1);
+	//To keep track of how much time has passed during the steps while creeping.
+	double creep_chrono = 0.0;
 
 	for (int i = 0; i < particles; i++) {
 		initial_indices_sum[i] = 0;
@@ -94,10 +102,10 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 		}
 	}
 
-	std::string tag = "field_direction-" + std::to_string(field_direction);
+	std::string tag = load_positions ? "field_direction-" + std::to_string(field_direction) + "-creep" : "field_direction-" + std::to_string(field_direction);
 	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window, dimensions, field_direction);
 	Box* box = new Box(particles, length, dimensions);
-	if (load_positions) box->ReadCsv("positions/positions-" + std::to_string(mason) + "-" + std::to_string(amplitude_relationship) + "-" + std::to_string(repetition) + "-" + std::to_string(0) + "-" + tag + ".csv");
+	if (load_positions) box->ReadCsv("positions/positions-" + std::to_string(mason) + "-" + std::to_string(amplitude_relationship) + "-" + std::to_string(repetition) + "-" + std::to_string(file_to_load) + "-" + tag + ".csv");
 
 	std::vector<double> get_x = box->ReturnX();
 	std::vector<double> get_y = box->ReturnY();
@@ -161,6 +169,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	cl::Buffer buffer_stress_array = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_stress = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(double));
 	cl::Buffer buffer_r_array = cl::Buffer(context, CL_MEM_READ_WRITE, matrix_size * sizeof(double));
+	cl::Buffer buffer_wall_velocity = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(double));
 
 
 	std::ifstream sum_file("sum.cl");
@@ -236,6 +245,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	sum_kernel.setArg(17, buffer_mode);
 	sum_kernel.setArg(18, buffer_phase);
 	sum_kernel.setArg(19, buffer_stress_array);
+	sum_kernel.setArg(20, buffer_wall_velocity);
 
 	forces_kernel.setArg(0, x_0);
 	forces_kernel.setArg(1, y_0);
@@ -314,6 +324,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 			queue.enqueueWriteBuffer(buffer_magnetic_field, CL_TRUE, 0, 3 * sizeof(double), &magnetic_field);
 			double perturbation = 0.0;
 			queue.enqueueWriteBuffer(buffer_mason, CL_TRUE, 0, sizeof(double), &perturbation);
+			queue.enqueueWriteBuffer(buffer_wall_velocity, CL_TRUE, 0, sizeof(double), &wall_velocity);
 		}
 
 		while (!end_simulation) {
@@ -358,9 +369,17 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 			}
 			if (phase == phases - 1 && valid == 1) {
 				t += delta_t;
+				//If we are running creep experiment and passed time is equal or greater than creep phase, change relaxation status.
+				creep_chrono += delta_t;
+				if (creep_chrono >= creep_time && load_positions) {
+					creep_chrono = 0.0;
+					relaxation = !(relaxation == 1);
+				}
 				queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
 				analysis->RecordStress(t, stress);
 				end_simulation = time > max_time;
+				wall_velocity = length*relaxation;
+				queue.enqueueWriteBuffer(buffer_wall_velocity, CL_TRUE, 0, sizeof(double), &wall_velocity);
 			}
 		}
 	}
