@@ -68,7 +68,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	int* particle_1 = new int[matrix_size];
 	bool end_simulation;
 	double stress = 0;
-	int file_to_load = ceil(max_times[0] * frecuency / (2 * pi)) + ceil(max_times[1] * frecuency / (2 * pi)) + 2 * round(1 / step);
+	int file_to_load = ceil(max_times[0] * frecuency / (2 * pi)) + ceil(max_times[1] * frecuency / (2 * pi));
 	double wall_velocity = length;
 	//These variables are meant for creep experiment. First one is to set if we are in relaxation time, 0, or not, 1.
 	int relaxation = 1;
@@ -105,7 +105,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	std::string tag = load_positions ? "field_direction-" + std::to_string(field_direction) + "-creep" : "field_direction-" + std::to_string(field_direction);
 	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window, dimensions, field_direction);
 	Box* box = new Box(particles, length, dimensions);
-	if (load_positions) box->ReadCsv("positions/positions-" + std::to_string(mason) + "-" + std::to_string(amplitude_relationship) + "-" + std::to_string(repetition) + "-" + std::to_string(file_to_load) + "-" + tag + ".csv");
+	if (load_positions) box->ReadCsv("positions/positions-" + std::to_string(mason) + "-" + std::to_string(amplitude_relationship) + "-" + std::to_string(repetition) + "-" + std::to_string(file_to_load) + "-field_direction-" + std::to_string(field_direction) + ".csv");
 
 	std::vector<double> get_x = box->ReturnX();
 	std::vector<double> get_y = box->ReturnY();
