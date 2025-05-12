@@ -73,7 +73,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	//These variables are meant for creep experiment. First one is to set if we are in relaxation time, 0, or not, 1.
 	int relaxation = 1;
 	//Duration of stress depending on field direction. To avoid breaking the structures.
-	double creep_time = 0.2 * (field_direction == 0) + 0.3 * (field_direction == 1);
+	double creep_time = 0.1 * (field_direction == 0) + 0.2 * (field_direction == 1);
 	//To keep track of how much time has passed during the steps while creeping.
 	double creep_chrono = 0.0;
 
@@ -369,12 +369,10 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 			}
 			if (phase == phases - 1 && valid == 1) {
 				t += delta_t;
-				//If we are running creep experiment and passed time is equal or greater than creep phase, change relaxation status.
 				creep_chrono += delta_t;
-				if (creep_chrono >= creep_time && load_positions) {
-					creep_chrono = 0.0;
-					relaxation = !(relaxation == 1);
-				}
+				//If we are running creep experiment and passed time is equal or greater than creep phase, change relaxation status.
+				relaxation = !(creep_chrono >= creep_time && load_positions);
+
 				queue.enqueueReadBuffer(buffer_stress, CL_TRUE, 0, sizeof(double), &stress);
 				analysis->RecordStress(t, stress);
 				end_simulation = time > max_time;

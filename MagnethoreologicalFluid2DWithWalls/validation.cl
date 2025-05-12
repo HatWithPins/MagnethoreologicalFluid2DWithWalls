@@ -23,8 +23,8 @@ __kernel void validation (
 				magnetic_field[0] = (*amplitude_relationship)*sin((*mason)*(*t))*magnetic_field[1];
 			} else if (*field_direction == 1) {
 				magnetic_field[0] = 0;
-				magnetic_field[2] = 1/sqrt((*amplitude_relationship)*sin((*mason)*(*t))*(*amplitude_relationship)*sin((*mason)*(*t)) + 1);
-				magnetic_field[1] = (*amplitude_relationship)*sin((*mason)*(*t))*magnetic_field[2];
+				magnetic_field[2] = (1/sqrt((*amplitude_relationship)*sin((*mason)*(*t))*(*amplitude_relationship)*sin((*mason)*(*t)) + 1))*(*mode!=1) + (*mode==1);
+				magnetic_field[1] = (*amplitude_relationship)*sin((*mason)*(*t))*magnetic_field[2]*(*mode!=1);
 
 				if (*mode == 1) {
 					*stress = 0;
@@ -35,8 +35,8 @@ __kernel void validation (
 				}
 			} else if (*field_direction == 0) {
 				magnetic_field[1] = 0;
-				magnetic_field[2] = 1/sqrt((*amplitude_relationship)*sin((*mason)*(*t))*(*amplitude_relationship)*sin((*mason)*(*t)) + 1);
-				magnetic_field[0] = (*amplitude_relationship)*sin((*mason)*(*t))*magnetic_field[2];
+				magnetic_field[2] = 1/sqrt((*amplitude_relationship)*sin((*mason)*(*t))*(*amplitude_relationship)*sin((*mason)*(*t)) + 1)*(*mode!=1) + (*mode==1);
+				magnetic_field[0] = (*amplitude_relationship)*sin((*mason)*(*t))*magnetic_field[2]*(*mode!=1);
 
 				if (*mode == 1) {
 					*stress = 0;
