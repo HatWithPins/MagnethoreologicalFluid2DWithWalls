@@ -21,7 +21,7 @@
 
 using namespace std::chrono;
 using namespace cl;
-void Simulation(int field_direction, int phases, int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_times[3], bool keep_positions, bool load_positions) {
+void Simulation(int field_direction, int phases, int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_times[3], bool keep_positions, bool load_positions, double creep_time) {
 	auto start = high_resolution_clock::now();
 	std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction = " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + "\n";
 
@@ -72,8 +72,6 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 	double wall_velocity = length;
 	//These variables are meant for creep experiment. First one is to set if we are in relaxation time, 0, or not, 1.
 	int relaxation = 1;
-	//Duration of stress depending on field direction. To avoid breaking the structures.
-	double creep_time = 0.1 * (field_direction == 0) + 0.2 * (field_direction == 1);
 	//To keep track of how much time has passed during the steps while creeping.
 	double creep_chrono = 0.0;
 

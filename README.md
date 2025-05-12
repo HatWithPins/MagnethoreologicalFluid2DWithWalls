@@ -12,7 +12,7 @@ I'm writing this on July 2021, if you found this much later in the future, it's 
 is needed for compile and run OpenCL programs in AMD cards.
 
 ## Usage
-``MagnethorologicalFluid2dWithWalls repetitions=2 particles=400 concentration=0.07 ma=0.4 ar=1.5 dimensions=3 field_direction=0 keep_positions=1 load_positions=0``
+``MagnethorologicalFluid2dWithWalls repetitions=2 particles=400 concentration=0.07 ma=0.4 ar=1.5 dimensions=3 field_direction=0 keep_positions=1 load_positions=0 creep_time=1.0``
 
 **repetitions** can be any number between 1 and 5. It's the number of parallel simulations.\
 **particles** is the number of particles per simulation, minimum 2. This variable is a 32 bit int.\
@@ -23,4 +23,5 @@ is needed for compile and run OpenCL programs in AMD cards.
 **field_direction** can be 0, for DC field oriented in the x axis, or 1, for DC field oriented in the y axis.\
 **keep_positions** can be 0, for not recording positions, or 1 for doing so.\
 **load_positions** 0 for not loading previous positions, 1 for loading. If loading positions, it will simulate a creep experiment.
-In order to work, a previous, regular simulation, has to run so there is a file to load.
+In order to work, a previous, regular simulation, has to run so there is a file to load.\
+**creep_time** any number from 0.0. Only used when loading positions for creep experiments. Ignored if positions are not loaded.

@@ -21,7 +21,7 @@ int Length(int particles, int dimensions, double concentration) {
 	return length;
 }
 
-void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, int field_direction, int keep_positions, int load_positions) {
+void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, int field_direction, int keep_positions, int load_positions, double creep_time) {
 	
 	double times[3];
 	int phases;
@@ -41,7 +41,7 @@ void SimulationThread(int repetition, int particles, double mason, double ar, in
 	int boxLength = Length(particles, dimensions, concentration);
 	double deltaT = 0.001;
 
-	Simulation(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times, keep_positions, load_positions);
+	Simulation(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times, keep_positions, load_positions, creep_time);
 }
 
 int main(int argc, char** argv)
@@ -57,13 +57,25 @@ int main(int argc, char** argv)
 	double ma = 0.0;
 	double ar = 0.0;
 	double concentration = 0.07;
+	double creep_time = 0.0;
 	int dimensions = 2;
 	//0, y direction, 1, z direction. 
 	int field_direction = 0;
 	int keep_positions = 0;
 	int load_positions = 0;
-	int expectedArguments = 10;
-	vector<string> expectedArgumentsList = { "repetitions=", "particles=", "concentration=", "ma=", "ar=", "dimensions=", "field_direction=", "keep_positions=", "load_positions=" };
+	int expectedArguments = 11;
+	vector<string> expectedArgumentsList = { 
+		"repetitions=", 
+		"particles=",
+		"concentration=",
+		"ma=",
+		"ar=", 
+		"dimensions=",
+		"field_direction=",
+		"keep_positions=",
+		"load_positions=",
+		"creep_time="
+	};
 
 	if (argc > expectedArguments)
 	{
@@ -155,6 +167,14 @@ int main(int argc, char** argv)
 					load_positions = stoi(argument.substr(pos + 1));
 					if (load_positions > 1 || load_positions < 0) {
 						cout << "Error, load_positions must be either 0 or 1, but received " << load_positions << endl;
+						return -1;
+					}
+				}
+				else if (argument.substr(0, pos) == "creep_time")
+				{
+					creep_time = stod(argument.substr(pos + 1));
+					if (ar < 0) {
+						cout << "Error, creep_time must be greater than 0, but received " << creep_time << endl;
 						return -1;
 					}
 				}
