@@ -195,7 +195,7 @@ int main(int argc, char** argv)
 	std::thread threads[5];
 
 	for (int i = 0; i < repetitions; i++) {
-		threads[i] = std::thread(SimulationThread, i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions);
+		threads[i] = std::thread(SimulationThread, i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
 	}
 	for (int i = 0; i < repetitions; i++) {
 		threads[i].join();
