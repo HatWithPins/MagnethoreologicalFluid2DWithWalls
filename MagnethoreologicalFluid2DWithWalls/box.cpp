@@ -125,7 +125,7 @@ void Box::ReadCsv(std::string path) {
 	std::vector<std::pair<std::string, std::vector<double>>> result;
 	std::fstream initialPositionsCsv;
 
-	std::cout << "Attempting to load file: " << path << std::endl;
+	std::cout << "Attempting to load file: " + path + "\n";
 
 	initialPositionsCsv.open(path, std::ios_base::in);
 	if(!initialPositionsCsv.is_open()) throw std::runtime_error("Could not open file");

@@ -23,7 +23,12 @@ using namespace std::chrono;
 using namespace cl;
 void Simulation(int field_direction, int phases, int particles, int dimensions, int length, double mason, double amplitude_relationship, double original_delta_t, int repetition, double max_times[3], bool keep_positions, bool load_positions, double creep_time) {
 	auto start = high_resolution_clock::now();
-	std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction = " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + "\n";
+	if (load_positions) {
+		std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction = " + std::to_string(field_direction) + ", creep time " + std::to_string(creep_time) + " and repetition " + std::to_string(repetition) + "\n";
+	}
+	else {
+		std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction = " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + "\n";
+	}
 
 	double magnetic_field[3];
 	if (dimensions == 3) {
@@ -316,7 +321,7 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 		queue.enqueueWriteBuffer(buffer_phase, CL_TRUE, 0, sizeof(int), &phase);
 		mode = phase == phases - 1;
 		queue.enqueueWriteBuffer(buffer_mode, CL_TRUE, 0, sizeof(int), &mode);
-		end_simulation = false;
+		end_simulation = delta_t < original_delta_t / 16.0;
 
 		if (phases > 2 && phase == 1) {
 			queue.enqueueWriteBuffer(buffer_magnetic_field, CL_TRUE, 0, 3 * sizeof(double), &magnetic_field);
@@ -376,6 +381,13 @@ void Simulation(int field_direction, int phases, int particles, int dimensions, 
 				end_simulation = time > max_time;
 				wall_velocity = length*relaxation;
 				queue.enqueueWriteBuffer(buffer_wall_velocity, CL_TRUE, 0, sizeof(double), &wall_velocity);
+			}
+
+			if (delta_t < original_delta_t / 16.0) {
+				end_simulation = true;
+
+				std::ofstream file{ "failed_simulations.txt" };
+				file << "Failed simulation for Ma " + std::to_string(mason) + ", AR " + std::to_string(amplitude_relationship) + ", field direction = " + std::to_string(field_direction) + ", creep time " + std::to_string(creep_time) + " and repetition " + std::to_string(repetition) + "\n";
 			}
 		}
 	}
