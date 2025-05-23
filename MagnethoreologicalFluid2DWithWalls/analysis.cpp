@@ -364,7 +364,7 @@ bool Analysis::EndSimulation() {
 }
 
 
-Analysis::Analysis(double mason, double amplitude_relationship, int particles, int length, int window, int dimensions, int field_direction) {
+Analysis::Analysis(double mason, double amplitude_relationship, int particles, int length, int window, int dimensions, double field_direction) {
 	mason_ = mason;
 	amplitude_relationship_ = amplitude_relationship;
 	particles_ = particles;
@@ -374,7 +374,7 @@ Analysis::Analysis(double mason, double amplitude_relationship, int particles, i
 	field_direction_ = field_direction;
 	iteration_ = 0;
 
-	if (dimensions_ == 3 && field_direction_ == 1) {
+	if (dimensions_ == 3) {
 		magnetic_field[0] = 0.0;
 		magnetic_field[1] = 0.0;
 		magnetic_field[2] = 1.0;

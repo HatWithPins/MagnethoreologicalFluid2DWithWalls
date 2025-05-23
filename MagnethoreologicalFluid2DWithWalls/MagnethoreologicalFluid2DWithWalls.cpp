@@ -21,7 +21,7 @@ int Length(int particles, int dimensions, double concentration) {
 	return length;
 }
 
-void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, int field_direction, int keep_positions, int load_positions, double creep_time) {
+void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, double field_direction, int keep_positions, int load_positions, double creep_time) {
 	
 	double times[3];
 	int phases;
@@ -59,8 +59,8 @@ int main(int argc, char** argv)
 	double concentration = 0.07;
 	double creep_time = 0.0;
 	int dimensions = 2;
-	//0, y direction, 1, z direction. 
-	int field_direction = 0;
+	//Angle of the perturbation with respect of x axis. 
+	double field_direction = 0;
 	int keep_positions = 0;
 	int load_positions = 0;
 	int expectedArguments = 11;
@@ -148,9 +148,9 @@ int main(int argc, char** argv)
 				}
 				else if (argument.substr(0, pos) == "field_direction")
 				{
-					field_direction = stoi(argument.substr(pos + 1));
-					if (field_direction > 1 || field_direction < 0) {
-						cout << "Error, field_direction must be either 0 or 1, but received " << field_direction << endl;
+					field_direction = stod(argument.substr(pos + 1));
+					if (field_direction > 90 || field_direction < 0) {
+						cout << "Error, field_direction must be either 0 or 90, but received " << field_direction << endl;
 						return -1;
 					}
 				}
