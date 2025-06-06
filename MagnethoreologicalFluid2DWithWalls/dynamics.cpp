@@ -75,7 +75,7 @@ void Simulation(double field_direction, int phases, int particles, int dimension
 	int* particle_1 = new int[matrix_size];
 	bool end_simulation;
 	double stress = 0;
-	int file_to_load = ceil(max_times[0] * frecuency / (2 * pi)) + ceil(max_times[1] * frecuency / (2 * pi));
+	int file_to_load = phases == 3 ? ceil(max_times[0] * frecuency / (2 * pi)) + ceil(max_times[1] * frecuency / (2 * pi)) : ceil(max_times[0] * frecuency / (2 * pi));
 	double wall_velocity = length;
 	//These variables are meant for creep experiment. First one is to set if we are in relaxation time, 0, or not, 1.
 	int relaxation = 1;
