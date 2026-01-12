@@ -1,4 +1,4 @@
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+﻿#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
 __kernel void distances (
 	global const double* x_0, global const double* y_0, global const double* z_0, global const int* particle_0_array, global const int* particle_1_array, 

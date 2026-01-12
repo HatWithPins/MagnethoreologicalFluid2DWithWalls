@@ -1,4 +1,4 @@
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+﻿#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
 __kernel void validation (
 	global int* valid, global double* x_0, global double* y_0, global double* z_0, global double* x_1, global double* y_1, global double* z_1,

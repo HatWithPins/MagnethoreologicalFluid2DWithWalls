@@ -15,7 +15,6 @@
 #include <sstream>
 #include <math.h>
 #include <CL/cl.hpp>
-#include <thread>
 #include <cmath>
 #include "box.h"
 #include "analysis.h"

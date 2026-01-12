@@ -1,4 +1,4 @@
-#include "analysis.h"
+﻿#include "analysis.h"
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -10,8 +10,6 @@
 #include <sstream>
 #include <math.h>
 #include <cmath>
-
-
 int* Analysis::Adjacency(double* x, double* y, double* z, double max_separation) {
 	int* adjacency = new int[particles_ * particles_];
 	double r;
@@ -479,7 +477,7 @@ void Analysis::Connectivity(double* x, double* y, double* z) {
 
 				modulus = sqrt(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
 				dot_product = u[0] * magnetic_field[0] + u[1] * magnetic_field[1] + u[2] * magnetic_field[2];
-				theta = abs(asin(dot_product/modulus))*180.0/pi;
+				theta = abs(acos(dot_product/modulus))*180.0/pi;
 				idx = static_cast <int> (floor(theta));
 				connectivity[idx]++;
 			}

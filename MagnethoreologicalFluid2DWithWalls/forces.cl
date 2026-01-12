@@ -1,4 +1,4 @@
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+﻿#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
 __kernel void forces (
 	global double* x_0, global double* y_0, global double* z_0, global const int* dimensions, global double* magnetic_field, global const int* length, global const int* particles, 
