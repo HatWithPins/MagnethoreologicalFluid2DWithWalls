@@ -476,8 +476,8 @@ void Analysis::Connectivity(double* x, double* y, double* z) {
 				u[2] = z[j] - z[i];
 
 				modulus = sqrt(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
-				dot_product = u[0] * magnetic_field[0] + u[1] * magnetic_field[1] + u[2] * magnetic_field[2];
-				theta = abs(acos(dot_product/modulus))*180.0/pi;
+				dot_product = abs(u[0] * magnetic_field[0] + u[1] * magnetic_field[1] + u[2] * magnetic_field[2]);
+				theta = acos(dot_product/modulus)*180.0/pi;
 				idx = static_cast <int> (floor(theta));
 				connectivity[idx]++;
 			}
