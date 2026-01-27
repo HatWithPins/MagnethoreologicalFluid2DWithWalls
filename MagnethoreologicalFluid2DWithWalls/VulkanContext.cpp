@@ -165,7 +165,6 @@ VkPipeline VulkanContext::createComputePipeline(const char* shaderPath) {
 
     VkPipeline pipeline;
     int pipelineCode = vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline);
-    std::cout << "Creating pipeline for shader: " << shaderPath << " with code: " << pipelineCode << std::endl;
 
     vkDestroyShaderModule(m_device, shader, nullptr);
     return pipeline;

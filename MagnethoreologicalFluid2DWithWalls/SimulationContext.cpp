@@ -210,7 +210,7 @@ void SimulationContext::createBuffers() {
                 throw std::runtime_error("Failed to allocate buffer memory");
 
 
-        std::cout << "Binding buffer status: " << vkBindBufferMemory(m_device, buffer, memory, 0) << " for buffer " << i << std::endl;
+        vkBindBufferMemory(m_device, buffer, memory, 0);
 
         };
 
@@ -231,7 +231,7 @@ void SimulationContext::createDescriptorSet() {
     poolInfo.maxSets = 1;
 
     VkDescriptorPool pool;
-    std::cout << "Descriptor pool status: " << vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &pool) << std::endl;
+    vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &pool);
 
     VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
     allocInfo.descriptorPool = pool;
@@ -288,7 +288,6 @@ void SimulationContext::submit() {
 
 void SimulationContext::wait() {
     int fenceWaitStatus = vkWaitForFences(m_device, 1, &m_fence, VK_TRUE, UINT64_MAX);
-    std::cout << "Fence, status code: " << fenceWaitStatus << std::endl;
 }
 
 VkCommandBuffer SimulationContext::commandBuffer() const {
