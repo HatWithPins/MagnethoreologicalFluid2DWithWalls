@@ -182,7 +182,7 @@ void SimulationContext::createBuffers() {
         m_particles * sizeof(double), //stress_array
         sizeof(double),               //stress
         matrix_size * sizeof(double), //r_array
-        sizeof(double)                //wall_velocity
+        sizeof(double)               //wall_velocity
     };
     for (int i = 0; i < 31; i++) {
         auto createBuffer = [&](VkBuffer& buffer, VkDeviceMemory& memory) {
