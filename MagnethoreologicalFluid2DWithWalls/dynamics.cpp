@@ -16,6 +16,7 @@
 #include <CL/opencl.hpp>
 #include <thread>
 #include <cmath>
+#include "SimulationContext.h"
 #include "box.h"
 #include "analysis.h"
 
@@ -418,4 +419,10 @@ void Simulation(double field_direction, int phases, int particles, int dimension
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<seconds>(stop - start);
 	std::cout << "Finishing simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + ". Took " + std::to_string(duration.count()) + " seconds.\n";
+}
+
+void SimulationVulkan(double fieldDirection, int phases, int particles, int dimensions, int length, double mason,
+	double amplitude_relationship, double original_delta_t, int repetition, double max_times[3],
+	bool keep_positions, bool load_positions, double creep_time){
+
 }

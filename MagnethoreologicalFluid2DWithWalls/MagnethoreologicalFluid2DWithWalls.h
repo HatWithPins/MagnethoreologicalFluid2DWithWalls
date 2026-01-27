@@ -16,6 +16,8 @@
 #include <math.h>
 #include <CL/cl.hpp>
 #include <cmath>
+#include <thread>
+#include "SimulationContext.h"
 #include "box.h"
 #include "analysis.h"
 #include "dynamics.h"

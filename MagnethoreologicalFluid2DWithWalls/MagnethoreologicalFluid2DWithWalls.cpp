@@ -21,7 +21,7 @@ int Length(int particles, int dimensions, double concentration) {
 	return length;
 }
 
-void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, double field_direction, int keep_positions, int load_positions, double creep_time) {
+void SimulationOpenCL(int repetition, int particles, double mason, double ar, int dimensions, double concentration, double field_direction, int keep_positions, int load_positions, double creep_time) {
 	
 	double times[3];
 	int phases;
@@ -43,6 +43,28 @@ void SimulationThread(int repetition, int particles, double mason, double ar, in
 
 	Simulation(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times, keep_positions, load_positions, creep_time);
 }
+void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, double field_direction, int keep_positions, int load_positions, double creep_time) {
+
+	double times[3];
+	int phases;
+	if (mason > 0.0) {
+		phases = 3;
+		times[0] = 500.0;
+		times[1] = 1000.0;
+		times[2] = 1050.0;
+	}
+	else {
+		phases = 2;
+		times[0] = 500.0;
+		times[1] = 550.0;
+		times[2] = 550.0;
+	}
+
+	int boxLength = Length(particles, dimensions, concentration);
+	double deltaT = 0.001;
+
+	SimulationVulkan(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times, keep_positions, load_positions, creep_time);
+}
 
 int main(int argc, char** argv)
 {
@@ -63,7 +85,8 @@ int main(int argc, char** argv)
 	double field_direction = 0;
 	int keep_positions = 0;
 	int load_positions = 0;
-	int expectedArguments = 11;
+	int vulkan = 0;
+	int expectedArguments = 12;
 	vector<string> expectedArgumentsList = { 
 		"repetitions=", 
 		"particles=",
@@ -74,7 +97,8 @@ int main(int argc, char** argv)
 		"field_direction=",
 		"keep_positions=",
 		"load_positions=",
-		"creep_time="
+		"creep_time=",
+		"vulkan="
 	};
 
 	if (argc > expectedArguments)
@@ -178,6 +202,14 @@ int main(int argc, char** argv)
 						return -1;
 					}
 				}
+				else if (argument.substr(0, pos) == "vulkan")
+				{
+					vulkan = stoi(argument.substr(pos + 1));
+					if (vulkan > 1 || vulkan < 0) {
+						cout << "Error, load_positions must be either 0 or 1, but received " << vulkan << endl;
+						return -1;
+					}
+				}
 			}
 			catch (const std::exception& e)
 			{
@@ -192,9 +224,20 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
+	if (vulkan){
+		std::thread threads[5];
+		for (int i = 0; i < repetitions; i++) {
+			threads[i] = std::thread(SimulationThread, i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
+		}
+		for (int i = 0; i < repetitions; i++) {
+			threads[i].join();
+		}
 
-	for (int i = 0; i < repetitions; i++) {
-		SimulationThread( i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
+	}
+	else {
+		for (int i = 0; i < repetitions; i++) {
+			SimulationOpenCL(i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
+		}
 	}
 
 	auto stop = high_resolution_clock::now();
