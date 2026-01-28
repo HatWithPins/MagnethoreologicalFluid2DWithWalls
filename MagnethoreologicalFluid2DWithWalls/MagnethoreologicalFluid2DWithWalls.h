@@ -15,8 +15,12 @@
 #include <sstream>
 #include <math.h>
 #include <CL/cl.hpp>
+#include <vulkan/vulkan.hpp>
 #include <cmath>
 #include <thread>
+#include "SubmitQueue.h"
+#include <atomic>
+#include "SubmitThread.h"
 #include "SimulationContext.h"
 #include "box.h"
 #include "analysis.h"

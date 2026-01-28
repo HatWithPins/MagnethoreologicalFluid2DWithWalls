@@ -8,6 +8,8 @@
 #include <exception>
 #include <stdexcept>
 #include <mutex>
+#include "SubmitJob.h"
+#include "SubmitQueue.h"
 
 class SimulationContext {
 public:

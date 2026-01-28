@@ -1,4 +1,5 @@
-﻿#include <vulkan/vulkan.hpp>
+﻿#pragma once
+#include <vulkan/vulkan.hpp>
 #include <stdexcept>
 #include <vector>
 #include <fstream>

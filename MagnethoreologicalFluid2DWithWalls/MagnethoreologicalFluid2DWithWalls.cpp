@@ -6,6 +6,9 @@
 using namespace std;
 using namespace std::chrono;
 
+SubmitQueue g_submitQueue;
+std::atomic<bool> g_submitRunning = true;
+
 int Length(int particles, int dimensions, double concentration) {
 	double pi = 3.14159265359;
 	int length = 0;
@@ -225,6 +228,8 @@ int main(int argc, char** argv)
 	}
 
 	if (vulkan){
+		std::thread submitThread(SubmitThreadFunc);
+
 		std::thread threads[5];
 		for (int i = 0; i < repetitions; i++) {
 			threads[i] = std::thread(SimulationThread, i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
@@ -233,6 +238,9 @@ int main(int argc, char** argv)
 			threads[i].join();
 		}
 
+		g_submitRunning = false;
+		g_submitQueue.shutdown();
+		submitThread.join();
 	}
 	else {
 		for (int i = 0; i < repetitions; i++) {

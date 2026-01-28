@@ -1,5 +1,7 @@
 ﻿#include "SimulationContext.h"
 
+extern SubmitQueue g_submitQueue;
+
 static uint32_t findMemoryType(
     VkPhysicalDevice physicalDevice,
     uint32_t typeFilter,
@@ -397,20 +399,14 @@ void SimulationContext::begin() {
 }
 
 void SimulationContext::submit() {
-    VulkanContext& vk = VulkanContext::instance();
+    SubmitJob job{};
+    job.submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    job.submit.commandBufferCount = 1;
+    job.submit.pCommandBuffers = &m_commandBuffers[0];
+    job.fence = m_fence;
 
-    VkSubmitInfo submit{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
-    submit.commandBufferCount = 1;
-
-    submit.pCommandBuffers = &m_commandBuffers[0];
-
-    static std::mutex queueMutex;
-    std::lock_guard<std::mutex> lock(queueMutex);
-    vkQueueSubmit(
-        vk.computeQueue(),
-        1, &submit,
-        m_fence
-    );
+    g_submitQueue.push(job);
+    
     wait();
 
     void* mapped = nullptr;
