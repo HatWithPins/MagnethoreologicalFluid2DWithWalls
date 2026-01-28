@@ -174,7 +174,6 @@ void Simulation(double field_direction, int phases, int particles, int dimension
 	cl::Buffer buffer_z_1 = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_stress_array = cl::Buffer(context, CL_MEM_READ_WRITE, particles * sizeof(double));
 	cl::Buffer buffer_stress = cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(double));
-	cl::Buffer buffer_r_array = cl::Buffer(context, CL_MEM_READ_WRITE, matrix_size * sizeof(double));
 	cl::Buffer buffer_wall_velocity = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(double));
 
 
@@ -307,7 +306,6 @@ void Simulation(double field_direction, int phases, int particles, int dimension
 	queue.enqueueWriteBuffer(buffer_field_direction, CL_TRUE, 0, sizeof(double), &field_direction);
 	queue.enqueueWriteBuffer(buffer_matrix_size, CL_TRUE, 0, sizeof(int), &matrix_size);
 	queue.enqueueWriteBuffer(buffer_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
-	queue.enqueueWriteBuffer(buffer_original_delta_t, CL_TRUE, 0, sizeof(double), &delta_t);
 	queue.enqueueWriteBuffer(buffer_original_delta_t, CL_TRUE, 0, sizeof(double), &original_delta_t);
 	queue.enqueueWriteBuffer(buffer_mason, CL_TRUE, 0, sizeof(double), &mason);
 	queue.enqueueWriteBuffer(buffer_amplitude_relationship, CL_TRUE, 0, sizeof(double), &amplitude_relationship);
@@ -469,10 +467,6 @@ void SimulationVulkan(double field_direction, int phases, int particles, int dim
 	int matrix_size = particles * (particles - 1) / 2;
 	int valid = 1;
 	int mode = 0;
-	int* initial_indices_sum = new int[particles];
-	int* last_indices_sum = new int[particles];
-	int* particle_0 = new int[matrix_size];
-	int* particle_1 = new int[matrix_size];
 	bool end_simulation;
 	double stress = 0;
 	int file_to_load = phases == 3 ? ceil(max_times[0] * frecuency / (2 * pi)) + ceil(max_times[1] * frecuency / (2 * pi)) : ceil(max_times[0] * frecuency / (2 * pi));
@@ -482,31 +476,6 @@ void SimulationVulkan(double field_direction, int phases, int particles, int dim
 	//To keep track of how much time has passed during the steps while creeping.
 	double creep_chrono = 0.0;
 
-	for (int i = 0; i < particles; i++) {
-		initial_indices_sum[i] = 0;
-		last_indices_sum[i] = 0;
-	}
-	for (int i = 1; i < particles; i++) {
-		for (int j = 1; j <= i; j++) {
-			initial_indices_sum[i] += particles - j;
-		}
-	}
-	last_indices_sum[0] = particles - 1;
-	for (int i = 1; i < particles; i++) {
-		for (int j = 1; j <= i + 1; j++) {
-			last_indices_sum[i] += particles - j;
-		}
-	}
-
-	int index = 0;
-	for (int i = 0; i < particles - 1; i++) {
-		for (int j = i + 1; j < particles; j++) {
-			particle_1[index] = i;
-			particle_0[index] = j;
-			index++;
-		}
-	}
-
 	std::string tag = load_positions ? "field_direction-" + std::to_string(field_direction) + "-creep_time-" + std::to_string(creep_time) : "field_direction-" + std::to_string(field_direction);
 	Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window, dimensions, field_direction);
 	Box* box = new Box(particles, length, dimensions);
@@ -515,8 +484,33 @@ void SimulationVulkan(double field_direction, int phases, int particles, int dim
 	std::vector<double> get_x = box->ReturnX();
 	std::vector<double> get_y = box->ReturnY();
 	std::vector<double> get_z = box->ReturnZ();
+	double* x_0 = new double[particles];
+	double* y_0 = new double[particles];
+	double* z_0 = new double[particles];
+	for (int i = 0; i < particles; i++) {
+		x_0[i] = get_x.data()[i];
+		y_0[i] = get_y.data()[i];
+		z_0[i] = get_z.data()[i];
+	}
 
 	double r_min = 1 - log(100.0) / 10;
 
-	SimulationContext* simulationContext = new SimulationContext(particles);
+	SimulationContext* simulationContext = new SimulationContext(particles, dimensions, length, field_direction, delta_t, mason, amplitude_relationship);
+
+	if (keep_positions) {
+		box->SetX(x_0);
+		box->SetY(y_0);
+		box->SetZ(z_0);
+		box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
+	}
+	analysis->WriteAnalysis(repetition, tag);
+	analysis->WriteStress(repetition, tag);
+	analysis->WriteConnectivity(repetition, tag);
+
+	delete box;
+	delete analysis;
+
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<seconds>(stop - start);
+	std::cout << "Finishing simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + ". Took " + std::to_string(duration.count()) + " seconds.\n";
 }

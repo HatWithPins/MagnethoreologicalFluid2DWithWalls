@@ -10,7 +10,7 @@
 
 class SimulationContext {
 public:
-    SimulationContext(size_t particleCount);
+    SimulationContext(size_t particleCount, int dimensions, int length, double field_direction, double delta_t, double mason, double amplitude_relationship);
     ~SimulationContext();
 
     // Non-copyable
@@ -28,12 +28,17 @@ public:
     std::vector<double> ReturnY();
     void SetZ(double* z);
     std::vector<double> ReturnZ();
+    void SetPhase(int phase);
+    void SetMode(int mode);
+    void SetMagneticField(double magnetic_field[3]);
+    void SetMason(double mason);
+    void SetWallVelocity(double wall_velocity);
+    int ReturnValid();
+    double ReturnTime();
+    double ReturnDeltaT();
+    double ReturnStress();
 
     VkCommandBuffer commandBuffer() const;
-
-    // Buffers
-    std::array<VkBuffer, 31> hostBuffers();
-
     VkDescriptorSet descriptorSet() const;
 
 private:
@@ -41,6 +46,7 @@ private:
     void allocateCommandBuffer();
     void createFence();
     void createBuffers();
+    void preloadBuffers();
     void createDescriptorSet();
     void recordCommands();
     void recordCommand(int command, VkCommandBufferBeginInfo info, VkPipeline pipeline, VkPipelineLayout pipelineLayout, int numThreads);
@@ -51,10 +57,17 @@ private:
     VkCommandBuffer m_commandBuffers[4];
     VkFence m_fence{ VK_NULL_HANDLE };
 
-    std::array<VkBuffer, 31> m_buffers;
-    std::array<VkDeviceMemory, 31> m_deviceMemory;
+    std::array<VkBuffer, 30> m_buffers;
+    std::array<VkDeviceMemory, 30> m_deviceMemory;
 
     VkDescriptorSet m_descriptorSet{ VK_NULL_HANDLE };
 
     size_t m_particles;
+    int m_dimensions;
+    int m_length;
+    double m_field_direction;
+    double m_delta_t;
+    double m_mason;
+    double m_amplitude_relationship;
+    int m_matrix_size;
 };

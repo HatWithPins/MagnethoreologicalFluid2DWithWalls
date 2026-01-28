@@ -21,7 +21,7 @@
 [[vk::binding(23, 0)]] RWStructuredBuffer<int> matrix_size;
 [[vk::binding(26, 0)]] RWStructuredBuffer<int> valid;
 [[vk::binding(28, 0)]] RWStructuredBuffer<double> stress_array;
-[[vk::binding(30, 0)]] RWStructuredBuffer<double> wall_velocity;
+[[vk::binding(29, 0)]] RWStructuredBuffer<double> wall_velocity;
 
 double sqrt_d(double x)
 {

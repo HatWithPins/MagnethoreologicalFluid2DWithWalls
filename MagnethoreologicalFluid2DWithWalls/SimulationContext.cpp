@@ -18,8 +18,15 @@ static uint32_t findMemoryType(
     throw std::runtime_error("Failed to find suitable memory type");
 }
 
-SimulationContext::SimulationContext(size_t particleCount) {
+SimulationContext::SimulationContext(size_t particleCount, int dimensions, int length, double field_direction, double delta_t, double mason, double amplitude_relationship) {
     m_particles = particleCount;
+    m_dimensions = dimensions;
+    m_length = length;
+    m_field_direction = field_direction;
+    m_delta_t = delta_t;
+    m_mason = mason;
+    m_amplitude_relationship = amplitude_relationship;
+    m_matrix_size = m_particles * (m_particles - 1) / 2;
     VulkanContext& vk = VulkanContext::instance();
     m_device = vk.device();
 
@@ -28,6 +35,7 @@ SimulationContext::SimulationContext(size_t particleCount) {
     createFence();
     createBuffers();
     createDescriptorSet();
+    preloadBuffers();
     recordCommands();
 }
 
@@ -36,7 +44,7 @@ SimulationContext::~SimulationContext() {
 
     vkDestroyFence(m_device, m_fence, nullptr);
 
-    for (int i = 0; i < 31; i++){
+    for (int i = 0; i < 30; i++){
       vkDestroyBuffer(m_device, m_buffers[i], nullptr);
       vkFreeMemory(m_device, m_deviceMemory[i], nullptr);
     }
@@ -128,7 +136,7 @@ void SimulationContext::createFence() {
 
 void SimulationContext::createBuffers() {
     /*
-    31 buffers:
+    30 buffers:
     0-2: x_0, y_0 and z_0
     3-5: x_1, y_1 and z_1
     6-8: F_x, F_y and F_z
@@ -147,11 +155,10 @@ void SimulationContext::createBuffers() {
     25: AR
     26: valid
     27-28: stress, stress_array
-    29: r_array
-    30: wall_velocity
+    29: wall_velocity
     */
     int matrix_size = m_particles * (m_particles - 1) / 2;
-    std::array<VkDeviceSize, 31> sizes = { 
+    std::array<VkDeviceSize, 30> sizes = { 
         m_particles * sizeof(double), //x_0 
         m_particles * sizeof(double), //y_0
         m_particles * sizeof(double), //z_0
@@ -181,10 +188,9 @@ void SimulationContext::createBuffers() {
         sizeof(int),                  //valid
         m_particles * sizeof(double), //stress_array
         sizeof(double),               //stress
-        matrix_size * sizeof(double), //r_array
         sizeof(double)               //wall_velocity
     };
-    for (int i = 0; i < 31; i++) {
+    for (int i = 0; i < 30; i++) {
         auto createBuffer = [&](VkBuffer& buffer, VkDeviceMemory& memory) {
             VkBufferCreateInfo bufInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
             bufInfo.size = sizes[i];
@@ -218,7 +224,128 @@ void SimulationContext::createBuffers() {
         createBuffer(m_buffers[i], m_deviceMemory[i]);
     }
 }
+void SimulationContext::preloadBuffers(){
+    int* initial_indices_sum = new int[m_particles];
+    int* last_indices_sum = new int[m_particles];
+    int* particle_0 = new int[m_matrix_size];
+    int* particle_1 = new int[m_matrix_size];
 
+    for (int i = 0; i < m_particles; i++) {
+        initial_indices_sum[i] = 0;
+        last_indices_sum[i] = 0;
+    }
+    for (int i = 1; i < m_particles; i++) {
+        for (int j = 1; j <= i; j++) {
+            initial_indices_sum[i] += m_particles - j;
+        }
+    }
+    last_indices_sum[0] = m_particles - 1;
+    for (int i = 1; i < m_particles; i++) {
+        for (int j = 1; j <= i + 1; j++) {
+            last_indices_sum[i] += m_particles - j;
+        }
+    }
+
+    int index = 0;
+    for (int i = 0; i < m_particles - 1; i++) {
+        for (int j = i + 1; j < m_particles; j++) {
+            particle_1[index] = i;
+            particle_0[index] = j;
+            index++;
+        }
+    }
+
+    void* mapped = nullptr;
+    vkMapMemory(m_device, m_deviceMemory[19], 0, m_particles * sizeof(int), 0, &mapped);
+    int* bufferDevice = static_cast<int*>(mapped);
+    for (int32_t I = 0; I < m_particles; ++I)
+    {
+        bufferDevice[I] = initial_indices_sum[I];
+    }
+    vkUnmapMemory(m_device, m_deviceMemory[19]);
+
+
+    vkMapMemory(m_device, m_deviceMemory[20], 0, m_particles * sizeof(int), 0, &mapped);
+    bufferDevice = static_cast<int*>(mapped);
+    for (int32_t I = 0; I < m_particles; ++I)
+    {
+        bufferDevice[I] = last_indices_sum[I];
+    }
+    vkUnmapMemory(m_device, m_deviceMemory[20]);
+
+    vkMapMemory(m_device, m_deviceMemory[21], 0, m_matrix_size * sizeof(int), 0, &mapped);
+    bufferDevice = static_cast<int*>(mapped);
+    for (int32_t I = 0; I < m_matrix_size; ++I)
+    {
+        bufferDevice[I] = particle_0[I];
+    }
+    vkUnmapMemory(m_device, m_deviceMemory[21]);
+
+    vkMapMemory(m_device, m_deviceMemory[22], 0, m_matrix_size * sizeof(int), 0, &mapped);
+    bufferDevice = static_cast<int*>(mapped);
+    for (int32_t I = 0; I < m_matrix_size; ++I)
+    {
+        bufferDevice[I] = particle_1[I];
+    }
+    vkUnmapMemory(m_device, m_deviceMemory[22]);
+
+    vkMapMemory(m_device, m_deviceMemory[9], 0, 3 * sizeof(double), 0, &mapped);
+    double* bufferDeviceDouble = static_cast<double*>(mapped);
+    bufferDeviceDouble[0] = 0.0;
+    bufferDeviceDouble[1] = (m_dimensions == 2);
+    bufferDeviceDouble[2] = (m_dimensions == 3);
+    vkUnmapMemory(m_device, m_deviceMemory[9]);
+
+    vkMapMemory(m_device, m_deviceMemory[12], 0,  sizeof(int), 0, &mapped);
+    bufferDevice = static_cast<int*>(mapped);
+    bufferDevice[0] = m_dimensions;
+    vkUnmapMemory(m_device, m_deviceMemory[12]);
+
+    vkMapMemory(m_device, m_deviceMemory[13], 0, sizeof(int), 0, &mapped);
+    bufferDevice = static_cast<int*>(mapped);
+    bufferDevice[0] = m_length;
+    vkUnmapMemory(m_device, m_deviceMemory[13]);
+
+    vkMapMemory(m_device, m_deviceMemory[14], 0, sizeof(double), 0, &mapped);
+    bufferDeviceDouble = static_cast<double*>(mapped);
+    bufferDeviceDouble[0] = m_field_direction;
+    vkUnmapMemory(m_device, m_deviceMemory[14]);
+
+    vkMapMemory(m_device, m_deviceMemory[15], 0, sizeof(int), 0, &mapped);
+    bufferDevice = static_cast<int*>(mapped);
+    bufferDevice[0] = m_particles;
+    vkUnmapMemory(m_device, m_deviceMemory[15]);
+
+    vkMapMemory(m_device, m_deviceMemory[16], 0, sizeof(double), 0, &mapped);
+    bufferDeviceDouble = static_cast<double*>(mapped);
+    bufferDeviceDouble[0] = m_delta_t;
+    vkUnmapMemory(m_device, m_deviceMemory[16]);
+
+    vkMapMemory(m_device, m_deviceMemory[17], 0, sizeof(double), 0, &mapped);
+    bufferDeviceDouble = static_cast<double*>(mapped);
+    bufferDeviceDouble[0] = m_delta_t;
+    vkUnmapMemory(m_device, m_deviceMemory[17]);
+
+    vkMapMemory(m_device, m_deviceMemory[18], 0, sizeof(double), 0, &mapped);
+    bufferDeviceDouble = static_cast<double*>(mapped);
+    bufferDeviceDouble[0] = 0.0;
+    vkUnmapMemory(m_device, m_deviceMemory[18]);
+
+    vkMapMemory(m_device, m_deviceMemory[23], 0, sizeof(int), 0, &mapped);
+    bufferDevice = static_cast<int*>(mapped);
+    bufferDevice[0] = m_matrix_size;
+    vkUnmapMemory(m_device, m_deviceMemory[23]);
+
+    vkMapMemory(m_device, m_deviceMemory[24], 0, sizeof(double), 0, &mapped);
+    bufferDeviceDouble = static_cast<double*>(mapped);
+    bufferDeviceDouble[0] = m_mason;
+    vkUnmapMemory(m_device, m_deviceMemory[24]);
+
+    vkMapMemory(m_device, m_deviceMemory[25], 0, sizeof(double), 0, &mapped);
+    bufferDeviceDouble = static_cast<double*>(mapped);
+    bufferDeviceDouble[0] = m_amplitude_relationship;
+    vkUnmapMemory(m_device, m_deviceMemory[25]);
+}
 void SimulationContext::createDescriptorSet() {
     // Descriptor pool (one per simulation for simplicity)
     VkDescriptorPoolSize poolSize{};
@@ -244,10 +371,10 @@ void SimulationContext::createDescriptorSet() {
     if (vkAllocateDescriptorSets(m_device, &allocInfo, &m_descriptorSet) != VK_SUCCESS)
         throw std::runtime_error("Failed to allocate descriptor set");
 
-    std::array<VkWriteDescriptorSet, 31> writes{};
-    std::array<VkDescriptorBufferInfo, 31> bufferInfos;
+    std::array<VkWriteDescriptorSet, 30> writes{};
+    std::array<VkDescriptorBufferInfo, 30> bufferInfos;
 
-    for (int i = 0; i < 31; i++) {
+    for (int i = 0; i < 30; i++) {
         bufferInfos[i].buffer = m_buffers[i];
         bufferInfos[i].offset = 0;
         bufferInfos[i].range = VK_WHOLE_SIZE;
@@ -292,10 +419,6 @@ void SimulationContext::wait() {
 
 VkCommandBuffer SimulationContext::commandBuffer() const {
     return m_commandBuffers[0];
-}
-
-std::array<VkBuffer, 31> SimulationContext::hostBuffers() {
-    return m_buffers;
 }
 
 VkDescriptorSet SimulationContext::descriptorSet() const {
@@ -374,4 +497,86 @@ std::vector<double> SimulationContext::ReturnZ() {
     }
     vkUnmapMemory(m_device, m_deviceMemory[2]);
     return z;
+}
+void SimulationContext::SetPhase(int phase){
+    void* mapped = nullptr;
+
+    vkMapMemory(m_device, m_deviceMemory[11], 0, sizeof(int), 0, &mapped);
+    int* bufferDevice = static_cast<int*>(mapped);
+    bufferDevice[0] = phase;
+    vkUnmapMemory(m_device, m_deviceMemory[11]);
+}
+void SimulationContext::SetMode(int mode){
+    void* mapped = nullptr;
+
+    vkMapMemory(m_device, m_deviceMemory[10], 0, sizeof(int), 0, &mapped);
+    int* bufferDevice = static_cast<int*>(mapped);
+    bufferDevice[0] = mode;
+    vkUnmapMemory(m_device, m_deviceMemory[10]);
+}
+void SimulationContext::SetMagneticField(double magnetic_field[3]){
+    void* mapped = nullptr;
+
+    vkMapMemory(m_device, m_deviceMemory[9], 0, 3 * sizeof(double), 0, &mapped);
+    double* bufferDevice = static_cast<double*>(mapped);
+    bufferDevice[0] = magnetic_field[0];
+    bufferDevice[1] = magnetic_field[1];
+    bufferDevice[2] = magnetic_field[2];
+    vkUnmapMemory(m_device, m_deviceMemory[9]);
+}
+void SimulationContext::SetMason(double mason){
+    void* mapped = nullptr;
+
+    vkMapMemory(m_device, m_deviceMemory[24], 0, sizeof(double), 0, &mapped);
+    double* bufferDevice = static_cast<double*>(mapped);
+    bufferDevice[0] = mason;
+    vkUnmapMemory(m_device, m_deviceMemory[24]);
+}
+void SimulationContext::SetWallVelocity(double wall_velocity){
+    void* mapped = nullptr;
+
+    vkMapMemory(m_device, m_deviceMemory[29], 0, sizeof(double), 0, &mapped);
+    double* bufferDevice = static_cast<double*>(mapped);
+    bufferDevice[0] = wall_velocity;
+    vkUnmapMemory(m_device, m_deviceMemory[29]);
+}
+int SimulationContext::ReturnValid(){
+    void* mapped = nullptr;
+
+    vkMapMemory(m_device, m_deviceMemory[26], 0, sizeof(int), 0, &mapped);
+    int* bufferDevice = static_cast<int*>(mapped);
+    int valid = bufferDevice[0];
+    vkUnmapMemory(m_device, m_deviceMemory[26]);
+
+    return valid;
+}
+double SimulationContext::ReturnTime(){
+    void* mapped = nullptr;
+
+    vkMapMemory(m_device, m_deviceMemory[18], 0, sizeof(double), 0, &mapped);
+    double* bufferDevice = static_cast<double*>(mapped);
+    double time = bufferDevice[0];
+    vkUnmapMemory(m_device, m_deviceMemory[18]);
+
+    return time;
+}
+double SimulationContext::ReturnDeltaT(){
+    void* mapped = nullptr;
+
+    vkMapMemory(m_device, m_deviceMemory[16], 0, sizeof(double), 0, &mapped);
+    double* bufferDevice = static_cast<double*>(mapped);
+    double delta_t = bufferDevice[0];
+    vkUnmapMemory(m_device, m_deviceMemory[16]);
+
+    return delta_t;
+}
+double SimulationContext::ReturnStress(){
+    void* mapped = nullptr;
+
+    vkMapMemory(m_device, m_deviceMemory[27], 0, sizeof(double), 0, &mapped);
+    double* bufferDevice = static_cast<double*>(mapped);
+    double stress = bufferDevice[0];
+    vkUnmapMemory(m_device, m_deviceMemory[27]);
+
+    return stress;
 }
