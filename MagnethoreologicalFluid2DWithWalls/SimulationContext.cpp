@@ -410,6 +410,15 @@ void SimulationContext::submit() {
             m_fence
         );
         wait();
+
+        if(i == 2) {
+            void* mapped = nullptr;
+
+            vkMapMemory(m_device, m_deviceMemory[26], 0, sizeof(int), 0, &mapped);
+            int* bufferDevice = static_cast<int*>(mapped);
+            m_valid = bufferDevice[0];
+            vkUnmapMemory(m_device, m_deviceMemory[26]);
+        }
     }
 }
 
@@ -541,14 +550,7 @@ void SimulationContext::SetWallVelocity(double wall_velocity){
     vkUnmapMemory(m_device, m_deviceMemory[29]);
 }
 int SimulationContext::ReturnValid(){
-    void* mapped = nullptr;
-
-    vkMapMemory(m_device, m_deviceMemory[26], 0, sizeof(int), 0, &mapped);
-    int* bufferDevice = static_cast<int*>(mapped);
-    int valid = bufferDevice[0];
-    vkUnmapMemory(m_device, m_deviceMemory[26]);
-
-    return valid;
+    return m_valid;
 }
 double SimulationContext::ReturnTime(){
     void* mapped = nullptr;

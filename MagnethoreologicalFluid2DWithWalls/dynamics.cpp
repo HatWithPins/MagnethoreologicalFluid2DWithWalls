@@ -497,6 +497,81 @@ void SimulationVulkan(double field_direction, int phases, int particles, int dim
 
 	SimulationContext* simulationContext = new SimulationContext(particles, dimensions, length, field_direction, delta_t, mason, amplitude_relationship);
 
+	for (int phase = 0 + (phases - 1) * load_positions; phase < phases; phase++) {
+		max_time = max_times[phase];
+		laps = ceil(max_time * frecuency / (2 * pi));
+		simulationContext->SetPhase(phase);
+		mode = phase == phases - 1;
+		simulationContext->SetMode(mode);
+		end_simulation = delta_t < original_delta_t / 16.0;
+
+		if (phases > 2 && phase == 1) {
+			simulationContext->SetMagneticField(magnetic_field);
+			double perturbation = 0.0;
+			simulationContext->SetMason(perturbation);
+			simulationContext->SetWallVelocity(wall_velocity);
+		}
+
+		while (!end_simulation) {
+			simulationContext->begin();
+			simulationContext->submit();
+			valid = simulationContext->ReturnValid();
+			time = simulationContext->ReturnTime();
+
+			current_lap = floor(time * frecuency / (2 * pi));
+			if (current_lap > lap) {
+				counter++;
+				lap = current_lap;
+				if (keep_positions) {
+					box->SetX(x_0);
+					box->SetY(y_0);
+					box->SetZ(z_0);
+					box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
+				}
+				analysis->PreAnalysis(x_0, y_0, z_0, time);
+				analysis->Connectivity(x_0, y_0, z_0);
+				end_simulation = time > max_time;
+			}
+			else if (current_lap == laps - 1) {
+				delta_t = simulationContext->ReturnDeltaT();
+				stretch += delta_t;
+
+				if (stretch > step) {
+					counter++;
+					if (keep_positions) {
+						box->SetX(x_0);
+						box->SetY(y_0);
+						box->SetZ(z_0);
+						box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
+					}
+					analysis->PreAnalysis(x_0, y_0, z_0, time);
+					analysis->Connectivity(x_0, y_0, z_0);
+					end_simulation = time > max_time;
+					stretch = 0;
+				}
+			}
+			if (phase == phases - 1 && valid == 1) {
+				t += delta_t;
+				creep_chrono += delta_t;
+				//If we are running creep experiment and passed time is equal or greater than creep phase, change relaxation status.
+				relaxation = !(creep_chrono >= creep_time && load_positions);
+
+				stress = simulationContext->ReturnStress();
+				analysis->RecordStress(t, stress);
+				end_simulation = time > max_time;
+				wall_velocity = length * relaxation;
+				simulationContext->SetWallVelocity(wall_velocity);
+			}
+
+			if (delta_t < original_delta_t / 16.0) {
+				end_simulation = true;
+
+				std::ofstream file{ "failed_simulations.txt" };
+				file << "Failed simulation for Ma " + std::to_string(mason) + ", AR " + std::to_string(amplitude_relationship) + ", field direction = " + std::to_string(field_direction) + ", creep time " + std::to_string(creep_time) + " and repetition " + std::to_string(repetition) + "\n";
+			}
+		}
+	}
+
 	if (keep_positions) {
 		box->SetX(x_0);
 		box->SetY(y_0);

@@ -70,4 +70,5 @@ private:
     double m_mason;
     double m_amplitude_relationship;
     int m_matrix_size;
+    int m_valid;
 };
