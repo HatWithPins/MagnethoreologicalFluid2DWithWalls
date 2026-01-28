@@ -21,7 +21,7 @@ double sqrt_d(double x){
     return y;
 }
 
-[numthreads(1, 1, 1)]
+[numthreads(32, 1, 1)]
 void Main(uint3 DTid : SV_DispatchThreadID)
 {
     double r;

@@ -66,15 +66,13 @@ void SimulationContext::allocateCommandBuffer() {
     VkCommandBufferAllocateInfo info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
     info.commandPool = m_commandPool;
     info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    info.commandBufferCount = 4;
+    info.commandBufferCount = 2;
 
     if (vkAllocateCommandBuffers(m_device, &info, m_commandBuffers) != VK_SUCCESS) {
         throw std::runtime_error("Failed to allocate command buffer");
     }
 }
 void SimulationContext::recordCommand(int command, VkCommandBufferBeginInfo info, VkPipeline pipeline, VkPipelineLayout pipelineLayout, int numThreads){
-    vkBeginCommandBuffer(m_commandBuffers[command], &info);
-
     vkCmdBindPipeline(m_commandBuffers[command], VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
     vkCmdBindDescriptorSets(m_commandBuffers[command], VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
@@ -109,20 +107,23 @@ void SimulationContext::recordCommand(int command, VkCommandBufferBeginInfo info
         0, nullptr,
         0, nullptr
     );
-    vkEndCommandBuffer(m_commandBuffers[command]);
 }
 void SimulationContext::recordCommands() {
     int matrixSize = m_particles * (m_particles - 1) / 2;;
     VulkanContext& vk = VulkanContext::instance();
 
+    int limit = 32;
+
     VkCommandBufferBeginInfo info{};
     info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    recordCommand(0, info, vk.forcesPipeline(),     vk.pipelineLayout(), matrixSize);
-    recordCommand(1, info, vk.sumPipeline(),        vk.pipelineLayout(), m_particles);
-    recordCommand(2, info, vk.distancesPipeline(),  vk.pipelineLayout(), matrixSize);
-    recordCommand(3, info, vk.validationPipeline(), vk.pipelineLayout(), m_particles);
-    
+
+    vkBeginCommandBuffer(m_commandBuffers[0], &info);
+    recordCommand(0, info, vk.validationPipeline(), vk.pipelineLayout(), (m_particles + limit - 1) / limit);
+    recordCommand(0, info, vk.forcesPipeline(),     vk.pipelineLayout(), (matrixSize+limit-1) / limit);
+    recordCommand(0, info, vk.sumPipeline(),        vk.pipelineLayout(), (m_particles+limit -1) / limit);
+    recordCommand(0, info, vk.distancesPipeline(),  vk.pipelineLayout(), (matrixSize + limit -1) / limit);
+    vkEndCommandBuffer(m_commandBuffers[0]);
 }
 
 void SimulationContext::createFence() {
@@ -401,25 +402,22 @@ void SimulationContext::submit() {
     VkSubmitInfo submit{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
     submit.commandBufferCount = 1;
 
-    for (int i = 0; i < 4; i++) {
-        submit.pCommandBuffers = &m_commandBuffers[i];
+    submit.pCommandBuffers = &m_commandBuffers[0];
 
-        vkQueueSubmit(
-            vk.computeQueue(),
-            1, &submit,
-            m_fence
-        );
-        wait();
+    static std::mutex queueMutex;
+    std::lock_guard<std::mutex> lock(queueMutex);
+    vkQueueSubmit(
+        vk.computeQueue(),
+        1, &submit,
+        m_fence
+    );
+    wait();
 
-        if(i == 2) {
-            void* mapped = nullptr;
-
-            vkMapMemory(m_device, m_deviceMemory[26], 0, sizeof(int), 0, &mapped);
-            int* bufferDevice = static_cast<int*>(mapped);
-            m_valid = bufferDevice[0];
-            vkUnmapMemory(m_device, m_deviceMemory[26]);
-        }
-    }
+    void* mapped = nullptr;
+    vkMapMemory(m_device, m_deviceMemory[26], 0, sizeof(int), 0, &mapped);
+    int* bufferDevice = static_cast<int*>(mapped);
+    m_valid = bufferDevice[0];
+    vkUnmapMemory(m_device, m_deviceMemory[26]);
 }
 
 void SimulationContext::wait() {

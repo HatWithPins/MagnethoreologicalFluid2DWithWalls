@@ -7,6 +7,7 @@
 #include <iostream>
 #include <exception>
 #include <stdexcept>
+#include <mutex>
 
 class SimulationContext {
 public:
@@ -54,7 +55,7 @@ private:
     VkDevice m_device{ VK_NULL_HANDLE };
 
     VkCommandPool m_commandPool{ VK_NULL_HANDLE };
-    VkCommandBuffer m_commandBuffers[4];
+    VkCommandBuffer m_commandBuffers[2];
     VkFence m_fence{ VK_NULL_HANDLE };
 
     std::array<VkBuffer, 30> m_buffers;
