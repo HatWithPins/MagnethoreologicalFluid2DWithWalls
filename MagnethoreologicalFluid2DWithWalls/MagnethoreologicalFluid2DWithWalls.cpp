@@ -24,7 +24,7 @@ int Length(int particles, int dimensions, double concentration) {
 	return length;
 }
 
-void SimulationOpenCL(int repetition, int particles, double mason, double ar, int dimensions, double concentration, double field_direction, int keep_positions, int load_positions, double creep_time) {
+void SimulationThreadOpenCL(int repetition, int particles, double mason, double ar, int dimensions, double concentration, double field_direction, int keep_positions, int load_positions, double creep_time) {
 	
 	double times[3];
 	int phases;
@@ -44,7 +44,7 @@ void SimulationOpenCL(int repetition, int particles, double mason, double ar, in
 	int boxLength = Length(particles, dimensions, concentration);
 	double deltaT = 0.001;
 
-	Simulation(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times, keep_positions, load_positions, creep_time);
+	SimulationOpenCL(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times, keep_positions, load_positions, creep_time);
 }
 void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, double field_direction, int keep_positions, int load_positions, double creep_time) {
 
@@ -227,10 +227,10 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	if (vulkan){
-		std::thread submitThread(SubmitThreadFunc);
+	std::thread submitThread(SubmitThreadFunc);
 
-		std::thread threads[5];
+	std::thread threads[5];
+	if (vulkan){
 		for (int i = 0; i < repetitions; i++) {
 			threads[i] = std::thread(SimulationThread, i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
 		}
@@ -244,8 +244,15 @@ int main(int argc, char** argv)
 	}
 	else {
 		for (int i = 0; i < repetitions; i++) {
-			SimulationOpenCL(i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
+			threads[i] = std::thread(SimulationThreadOpenCL, i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
 		}
+		for (int i = 0; i < repetitions; i++) {
+			threads[i].join();
+		}
+
+		g_submitRunning = false;
+		g_submitQueue.shutdown();
+		submitThread.join();
 	}
 
 	auto stop = high_resolution_clock::now();

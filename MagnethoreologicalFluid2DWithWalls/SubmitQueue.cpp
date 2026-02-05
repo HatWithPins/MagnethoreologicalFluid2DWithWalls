@@ -21,3 +21,16 @@ void SubmitQueue::shutdown() {
     stop = true;
     cv.notify_all();
 }
+
+void SubmitQueue::pushOpenCL(SubmitJobOpenCL job) {
+    std::lock_guard<std::mutex> lock(mutex);
+    queueOpenCL.push(job);
+}
+
+bool SubmitQueue::popOpenCL(SubmitJobOpenCL& job) {
+    std::lock_guard<std::mutex> lock(mutex);
+    if (queueOpenCL.empty()) return false;
+    job = queueOpenCL.front();
+    queueOpenCL.pop();
+    return true;
+}

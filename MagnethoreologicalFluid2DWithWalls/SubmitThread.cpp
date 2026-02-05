@@ -18,3 +18,21 @@ void SubmitThreadFunc() {
         );
     }
 }
+
+void SubmitThreadFuncOpenCL() {
+    auto& queue = OpenCLContext::instance().queue();
+
+    while (g_submitRunning) {
+        SubmitJobOpenCL job;
+        if (!g_submitQueue.popOpenCL(job)) {
+            std::this_thread::sleep_for(std::chrono::microseconds(50));
+            continue;
+        }
+
+        job.record(queue);
+        queue.finish();
+
+        *job.finished = true;
+        job.done->notify_one();
+    }
+}

@@ -19,6 +19,7 @@
 #include "box.h"
 #include "analysis.h"
 #include "SimulationContext.h"
+#include "SimulationContextOCL.h"
 
 using namespace std::chrono;
 using namespace cl;
@@ -589,3 +590,174 @@ void SimulationVulkan(double field_direction, int phases, int particles, int dim
 	auto duration = duration_cast<seconds>(stop - start);
 	std::cout << "Finishing simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + ". Took " + std::to_string(duration.count()) + " seconds.\n";
 }
+
+void SimulationOpenCL(double field_direction, int phases, int particles, int dimensions, int length, double mason,
+	double amplitude_relationship, double original_delta_t, int repetition, double max_times[3],
+	bool keep_positions, bool load_positions, double creep_time){
+			auto start = high_resolution_clock::now();
+			if (load_positions) {
+				std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction = " + std::to_string(field_direction) + ", creep time " + std::to_string(creep_time) + " and repetition " + std::to_string(repetition) + "\n";
+			}
+			else {
+				std::cout << "Starting simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction = " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + "\n";
+			}
+
+			double magnetic_field[3];
+			if (dimensions == 3) {
+				magnetic_field[0] = 0.0;
+				magnetic_field[1] = 0.0;
+				magnetic_field[2] = 1.0;
+			}
+			else {
+				magnetic_field[0] = 0.0;
+				magnetic_field[1] = 1.0;
+				magnetic_field[2] = 0.0;
+			}
+
+			double frecuency = mason + (mason < 0.00000001) * 1.0;
+			double delta_t = original_delta_t;
+			double pi = 3.14159265359;
+			//step divides a whole cycle depending on the frequency (mason number).
+			double step = 2 * pi / (mason * 360);
+			//strech tracks if the simulation overcame a step. This is used during the last phase of the simulation to keep track of the changes while applying stress.
+			double stretch = 0;
+			//Max time for a phase.
+			double max_time;
+			//Current time of the simulation.
+			double time = max_times[phases - 2] * load_positions;
+			//Variable to keep track of the time during stress phase.
+			double t = 0;
+			//Number laps during a phase.
+			int laps;
+			//Variable to check if current_lap changed. Logic behind this: if current_lap > lap, then, we are in a new lap.
+			int lap = 0;
+			//Current lap of the phase.
+			int current_lap = 0;
+			//Counter to record stresses.
+			int counter = 0;
+			int window = 5;
+			int matrix_size = particles * (particles - 1) / 2;
+			int valid = 1;
+			int mode = 0;
+			bool end_simulation;
+			double stress = 0;
+			int file_to_load = phases == 3 ? ceil(max_times[0] * frecuency / (2 * pi)) + ceil(max_times[1] * frecuency / (2 * pi)) : ceil(max_times[0] * frecuency / (2 * pi));
+			double wall_velocity = length;
+			//These variables are meant for creep experiment. First one is to set if we are in relaxation time, 0, or not, 1.
+			int relaxation = 1;
+			//To keep track of how much time has passed during the steps while creeping.
+			double creep_chrono = 0.0;
+
+			std::string tag = load_positions ? "field_direction-" + std::to_string(field_direction) + "-creep_time-" + std::to_string(creep_time) : "field_direction-" + std::to_string(field_direction);
+			Analysis* analysis = new Analysis(mason, amplitude_relationship, particles, length, window, dimensions, field_direction);
+			Box* box = new Box(particles, length, dimensions);
+			if (load_positions) box->ReadCsv("positions/positions-" + std::to_string(mason) + "-" + std::to_string(amplitude_relationship) + "-" + std::to_string(repetition) + "-" + std::to_string(file_to_load) + "-field_direction-" + std::to_string(field_direction) + ".csv");
+
+			std::vector<double> get_x = box->ReturnX();
+			std::vector<double> get_y = box->ReturnY();
+			std::vector<double> get_z = box->ReturnZ();
+			double* x_0 = new double[particles];
+			double* y_0 = new double[particles];
+			double* z_0 = new double[particles];
+			for (int i = 0; i < particles; i++) {
+				x_0[i] = get_x.data()[i];
+				y_0[i] = get_y.data()[i];
+				z_0[i] = get_z.data()[i];
+			}
+
+			double r_min = 1 - log(100.0) / 10;
+
+			SimulationContextOCL* simulationContext = new SimulationContextOCL(particles, dimensions, length, field_direction, delta_t, mason, amplitude_relationship);
+
+			for (int phase = 0 + (phases - 1) * load_positions; phase < phases; phase++) {
+				max_time = max_times[phase];
+				laps = ceil(max_time * frecuency / (2 * pi));
+				simulationContext->setPhase(phase);
+				mode = phase == phases - 1;
+				simulationContext->setMode(mode);
+				end_simulation = delta_t < original_delta_t / 16.0;
+
+				if (phases > 2 && phase == 1) {
+					simulationContext->setMagneticField(magnetic_field);
+					double perturbation = 0.0;
+					simulationContext->setMason(perturbation);
+					simulationContext->setWallVelocity(wall_velocity);
+				}
+
+				while (!end_simulation) {
+					simulationContext->enqueueStep();
+					simulationContext->readValid(&valid);
+					simulationContext->readTime(&time);
+
+					current_lap = floor(time * frecuency / (2 * pi));
+					if (current_lap > lap) {
+						counter++;
+						lap = current_lap;
+						if (keep_positions) {
+							box->SetX(x_0);
+							box->SetY(y_0);
+							box->SetZ(z_0);
+							box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
+						}
+						analysis->PreAnalysis(x_0, y_0, z_0, time);
+						analysis->Connectivity(x_0, y_0, z_0);
+						end_simulation = time > max_time;
+					}
+					else if (current_lap == laps - 1) {
+						simulationContext->readDeltaT(&delta_t);
+						stretch += delta_t;
+
+						if (stretch > step) {
+							counter++;
+							if (keep_positions) {
+								box->SetX(x_0);
+								box->SetY(y_0);
+								box->SetZ(z_0);
+								box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
+							}
+							analysis->PreAnalysis(x_0, y_0, z_0, time);
+							analysis->Connectivity(x_0, y_0, z_0);
+							end_simulation = time > max_time;
+							stretch = 0;
+						}
+					}
+					if (phase == phases - 1 && valid == 1) {
+						t += delta_t;
+						creep_chrono += delta_t;
+						//If we are running creep experiment and passed time is equal or greater than creep phase, change relaxation status.
+						relaxation = !(creep_chrono >= creep_time && load_positions);
+
+						simulationContext->readStress(&stress);
+						analysis->RecordStress(t, stress);
+						end_simulation = time > max_time;
+						wall_velocity = length * relaxation;
+						simulationContext->setWallVelocity(wall_velocity);
+					}
+
+					if (delta_t < original_delta_t / 16.0) {
+						end_simulation = true;
+
+						std::ofstream file{ "failed_simulations.txt" };
+						file << "Failed simulation for Ma " + std::to_string(mason) + ", AR " + std::to_string(amplitude_relationship) + ", field direction = " + std::to_string(field_direction) + ", creep time " + std::to_string(creep_time) + " and repetition " + std::to_string(repetition) + "\n";
+					}
+				}
+			}
+
+			if (keep_positions) {
+				box->SetX(x_0);
+				box->SetY(y_0);
+				box->SetZ(z_0);
+				box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
+			}
+			analysis->WriteAnalysis(repetition, tag);
+			analysis->WriteStress(repetition, tag);
+			analysis->WriteConnectivity(repetition, tag);
+
+			delete box;
+			delete analysis;
+
+			auto stop = high_resolution_clock::now();
+			auto duration = duration_cast<seconds>(stop - start);
+			std::cout << "Finishing simulation for AR = " + std::to_string(amplitude_relationship) + ", Mason = " + std::to_string(mason) + ", field direction " + std::to_string(field_direction) + " and repetition " + std::to_string(repetition) + ". Took " + std::to_string(duration.count()) + " seconds.\n";
+
+	}

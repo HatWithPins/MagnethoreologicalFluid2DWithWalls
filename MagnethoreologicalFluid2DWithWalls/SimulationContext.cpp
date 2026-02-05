@@ -78,32 +78,17 @@ void SimulationContext::recordCommand(int command, VkCommandBufferBeginInfo info
     vkCmdBindPipeline(m_commandBuffers[command], VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
     vkCmdBindDescriptorSets(m_commandBuffers[command], VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
-    VkMemoryBarrier hostToDevice{};
-    hostToDevice.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    hostToDevice.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
-    hostToDevice.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    vkCmdPipelineBarrier(
-        m_commandBuffers[command],
-        VK_PIPELINE_STAGE_HOST_BIT,
-        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-        0,
-        1, &hostToDevice,
-        0, nullptr,
-        0, nullptr
-    );
-
     vkCmdDispatch(m_commandBuffers[command], numThreads, 1, 1);
 
     VkMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
     barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
     vkCmdPipelineBarrier(
         m_commandBuffers[command],
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-        VK_PIPELINE_STAGE_HOST_BIT,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
         0,
         1, &barrier,
         0, nullptr,
@@ -125,6 +110,22 @@ void SimulationContext::recordCommands() {
     recordCommand(0, info, vk.forcesPipeline(),     vk.pipelineLayout(), (matrixSize+limit-1) / limit);
     recordCommand(0, info, vk.sumPipeline(),        vk.pipelineLayout(), (m_particles+limit -1) / limit);
     recordCommand(0, info, vk.distancesPipeline(),  vk.pipelineLayout(), (matrixSize + limit -1) / limit);
+    
+    VkMemoryBarrier hostToDevice{};
+    hostToDevice.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    hostToDevice.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+    hostToDevice.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(
+        m_commandBuffers[0],
+        VK_PIPELINE_STAGE_HOST_BIT,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        0,
+        1, &hostToDevice,
+        0, nullptr,
+        0, nullptr
+    );
+    
     vkEndCommandBuffer(m_commandBuffers[0]);
 }
 
