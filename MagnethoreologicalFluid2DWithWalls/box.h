@@ -39,10 +39,13 @@ public:
 	std::vector<double> ReturnZ();
 
 	void SetX(double* x);
+	void SetX(std::vector<double> x);
 
 	void SetY(double* y);
+	void SetY(std::vector<double> y);
 
 	void SetZ(double* z);
+	void SetZ(std::vector<double> z);
 
 	void ReadCsv(std::string path);
 };

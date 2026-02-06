@@ -106,14 +106,29 @@ void Box::SetX(double* x) {
 		positions_[0][i] = x[i];
 	}
 }
+void Box::SetX(std::vector<double> x) {
+	for (int i = 0; i < particles_; i++) {
+		positions_[0][i] = x[i];
+	}
+}
 
 void Box::SetY(double* y) {
 	for (int i = 0; i < particles_; i++) {
 		positions_[1][i] = y[i];
 	}
 }
+void Box::SetY(std::vector<double> y) {
+	for (int i = 0; i < particles_; i++) {
+		positions_[1][i] = y[i];
+	}
+}
 
 void Box::SetZ(double* z) {
+	for (int i = 0; i < particles_; i++) {
+		positions_[2][i] = z[i];
+	}
+}
+void Box::SetZ(std::vector<double> z) {
 	for (int i = 0; i < particles_; i++) {
 		positions_[2][i] = z[i];
 	}

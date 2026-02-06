@@ -1,5 +1,7 @@
 #pragma once
 #include <CL/cl.hpp>
+#include "SubmitJob.h"
+#include "SubmitQueue.h"
 
 
 class SimulationContextOCL {
@@ -13,12 +15,12 @@ public:
     void setMagneticField(double magnetic_field[3]);
     void setMason(double mason);
     void setWallVelocity(double wall_velocity);
-    void readValid(int* valid);
-    void readTime(double* time);
+    int readValid();
+    double readTime();
     void readDeltaT(double* delta_t);
     void readStress(double* stress);
 
-    void enqueueStep();
+    StepSync enqueueStep();
 
 private:
     void createBuffers();
@@ -28,8 +30,10 @@ private:
     int m_dimensions;
     int m_length;
     int m_matrix_size;
+    int m_valid;
     double m_mason;
     double m_ar;
+    double m_time;
     double m_delta_t;
     double m_field_direction;
 

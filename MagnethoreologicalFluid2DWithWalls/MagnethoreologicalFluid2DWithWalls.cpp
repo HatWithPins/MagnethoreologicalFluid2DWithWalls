@@ -46,6 +46,28 @@ void SimulationThreadOpenCL(int repetition, int particles, double mason, double 
 
 	SimulationOpenCL(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times, keep_positions, load_positions, creep_time);
 }
+void SimulationThreadOpenCLSerial(int repetition, int particles, double mason, double ar, int dimensions, double concentration, double field_direction, int keep_positions, int load_positions, double creep_time) {
+
+	double times[3];
+	int phases;
+	if (mason > 0.0) {
+		phases = 3;
+		times[0] = 500.0;
+		times[1] = 1000.0;
+		times[2] = 1050.0;
+	}
+	else {
+		phases = 2;
+		times[0] = 500.0;
+		times[1] = 550.0;
+		times[2] = 550.0;
+	}
+
+	int boxLength = Length(particles, dimensions, concentration);
+	double deltaT = 0.001;
+
+	Simulation(field_direction, phases, particles, dimensions, boxLength, mason, ar, deltaT, repetition, times, keep_positions, load_positions, creep_time);
+}
 void SimulationThread(int repetition, int particles, double mason, double ar, int dimensions, double concentration, double field_direction, int keep_positions, int load_positions, double creep_time) {
 
 	double times[3];
@@ -227,10 +249,10 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	std::thread submitThread(SubmitThreadFunc);
-
 	std::thread threads[5];
 	if (vulkan){
+		std::thread submitThread(SubmitThreadFunc);
+
 		for (int i = 0; i < repetitions; i++) {
 			threads[i] = std::thread(SimulationThread, i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
 		}
@@ -244,6 +266,11 @@ int main(int argc, char** argv)
 	}
 	else {
 		for (int i = 0; i < repetitions; i++) {
+			SimulationThreadOpenCLSerial(i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
+		}
+		/*std::thread submitThread(SubmitThreadFuncOpenCL);
+
+		for (int i = 0; i < repetitions; i++) {
 			threads[i] = std::thread(SimulationThreadOpenCL, i, particles, ma, ar, dimensions, concentration, field_direction, keep_positions, load_positions, creep_time);
 		}
 		for (int i = 0; i < repetitions; i++) {
@@ -252,7 +279,7 @@ int main(int argc, char** argv)
 
 		g_submitRunning = false;
 		g_submitQueue.shutdown();
-		submitThread.join();
+		submitThread.join();*/
 	}
 
 	auto stop = high_resolution_clock::now();

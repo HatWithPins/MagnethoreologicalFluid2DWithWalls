@@ -439,6 +439,15 @@ void SimulationContext::SetX(double* x) {
         xDevice[I] = x[I];
     }
     vkUnmapMemory(m_device, m_deviceMemory[0]);
+
+    vkMapMemory(m_device, m_deviceMemory[3], 0, m_particles * sizeof(double), 0, &mapped);
+
+    xDevice = static_cast<double*>(mapped);
+    for (int32_t I = 0; I < m_particles; ++I)
+    {
+        xDevice[I] = x[I];
+    }
+    vkUnmapMemory(m_device, m_deviceMemory[3]);
 }
 std::vector<double> SimulationContext::ReturnX() {
     std::vector<double> x(m_particles);
@@ -464,6 +473,15 @@ void SimulationContext::SetY(double* y) {
         yDevice[I] = y[I];
     }
     vkUnmapMemory(m_device, m_deviceMemory[1]);
+
+    vkMapMemory(m_device, m_deviceMemory[4], 0, m_particles * sizeof(double), 0, &mapped);
+
+    yDevice = static_cast<double*>(mapped);
+    for (int32_t I = 0; I < m_particles; ++I)
+    {
+        yDevice[I] = y[I];
+    }
+    vkUnmapMemory(m_device, m_deviceMemory[4]);
 }
 std::vector<double> SimulationContext::ReturnY() {
     std::vector<double> y(m_particles);
@@ -488,6 +506,15 @@ void SimulationContext::SetZ(double* z) {
         zDevice[I] = z[I];
     }
     vkUnmapMemory(m_device, m_deviceMemory[2]);
+
+    vkMapMemory(m_device, m_deviceMemory[5], 0, m_particles * sizeof(double), 0, &mapped);
+
+    zDevice = static_cast<double*>(mapped);
+    for (int32_t I = 0; I < m_particles; ++I)
+    {
+        zDevice[I] = z[I];
+    }
+    vkUnmapMemory(m_device, m_deviceMemory[5]);
 }
 std::vector<double> SimulationContext::ReturnZ() {
     std::vector<double> z(m_particles);

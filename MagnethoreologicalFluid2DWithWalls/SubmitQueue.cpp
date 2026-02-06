@@ -23,8 +23,11 @@ void SubmitQueue::shutdown() {
 }
 
 void SubmitQueue::pushOpenCL(SubmitJobOpenCL job) {
-    std::lock_guard<std::mutex> lock(mutex);
-    queueOpenCL.push(job);
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        queueOpenCL.push(job);
+    }
+    cv.notify_one();
 }
 
 bool SubmitQueue::popOpenCL(SubmitJobOpenCL& job) {

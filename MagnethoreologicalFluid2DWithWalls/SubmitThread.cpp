@@ -32,7 +32,10 @@ void SubmitThreadFuncOpenCL() {
         job.record(queue);
         queue.finish();
 
-        *job.finished = true;
+        {
+            std::lock_guard<std::mutex> lock(*job.mutex);
+            *job.finished = true;
+        }
         job.done->notify_one();
     }
 }

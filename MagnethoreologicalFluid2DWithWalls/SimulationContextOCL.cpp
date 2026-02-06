@@ -4,6 +4,8 @@
 #include <vector>
 #include <stdexcept>
 
+extern SubmitQueue g_submitQueue;
+
 static cl::Program loadProgram(
     const char* path,
     cl::Context& ctx,
@@ -144,7 +146,7 @@ void SimulationContextOCL::loadKernels() {
     prog_distances = loadProgram("distances.cl", m_context, m_device);
 
     kernel_forces    = cl::Kernel(prog_forces, "forces");
-    kernel_sum       = cl::Kernel(prog_sum, "integrate");
+    kernel_sum       = cl::Kernel(prog_sum, "sum");
     kernel_validate  = cl::Kernel(prog_validate, "validation");
     kernel_distances = cl::Kernel(prog_distances, "distances");
 
@@ -224,6 +226,10 @@ void SimulationContextOCL::setPositions(
     m_queue.enqueueWriteBuffer(buf_x0, CL_TRUE, 0, m_particles * sizeof(double), x);
     m_queue.enqueueWriteBuffer(buf_y0, CL_TRUE, 0, m_particles * sizeof(double), y);
     m_queue.enqueueWriteBuffer(buf_z0, CL_TRUE, 0, m_particles * sizeof(double), z);
+
+    m_queue.enqueueWriteBuffer(buf_x1, CL_TRUE, 0, m_particles * sizeof(double), x);
+    m_queue.enqueueWriteBuffer(buf_y1, CL_TRUE, 0, m_particles * sizeof(double), y);
+    m_queue.enqueueWriteBuffer(buf_z1, CL_TRUE, 0, m_particles * sizeof(double), z);
 }
 
 void SimulationContextOCL::readPositions(
@@ -251,11 +257,11 @@ void SimulationContextOCL::setMason(double mason){
 void SimulationContextOCL::setWallVelocity(double wall_velocity){
     m_queue.enqueueWriteBuffer(buf_wall_velocity, CL_TRUE, 0, sizeof(double), &wall_velocity);
 }
-void SimulationContextOCL::readValid(int* valid){
-    m_queue.enqueueReadBuffer(buf_valid, CL_TRUE, 0, sizeof(int), valid);
+int SimulationContextOCL::readValid(){
+    return m_valid;
 }
-void SimulationContextOCL::readTime(double* time){
-    m_queue.enqueueReadBuffer(buf_t, CL_TRUE, 0, sizeof(double), time);
+double SimulationContextOCL::readTime(){
+    return m_time;
 }
 void SimulationContextOCL::readDeltaT(double* delta_t){
     m_queue.enqueueReadBuffer(buf_delta_t, CL_TRUE, 0, sizeof(double), delta_t);
@@ -264,32 +270,33 @@ void SimulationContextOCL::readStress(double* stress){
     m_queue.enqueueReadBuffer(buf_stress, CL_TRUE, 0, sizeof(double), stress);
 }
 
-void SimulationContextOCL::enqueueStep() {
-    m_queue.enqueueNDRangeKernel(
-        kernel_validate,
-        cl::NullRange,
-        cl::NDRange(m_particles),
-        cl::NullRange
-    );
+StepSync SimulationContextOCL::enqueueStep() {
+    StepSync sync;
+    sync.mutex = std::make_shared<std::mutex>();
+    sync.cv = std::make_shared<std::condition_variable>();
+    sync.finished = std::make_shared<bool>(false);
 
-    m_queue.enqueueNDRangeKernel(
-        kernel_forces,
-        cl::NullRange,
-        cl::NDRange(m_matrix_size),
-        cl::NullRange
-    );
+    SubmitJobOpenCL job;
+    job.mutex = sync.mutex;
+    job.done = sync.cv;
+    job.finished = sync.finished;
 
-    m_queue.enqueueNDRangeKernel(
-        kernel_sum,
-        cl::NullRange,
-        cl::NDRange(m_particles),
-        cl::NullRange
-    );
+    job.record = [this](cl::CommandQueue& q) {
+        q.enqueueNDRangeKernel(kernel_validate, cl::NullRange,
+            cl::NDRange(m_particles));
 
-    m_queue.enqueueNDRangeKernel(
-        kernel_distances,
-        cl::NullRange,
-        cl::NDRange(m_matrix_size),
-        cl::NullRange
-    );
+        q.enqueueNDRangeKernel(kernel_forces, cl::NullRange,
+            cl::NDRange(m_matrix_size));
+
+        q.enqueueNDRangeKernel(kernel_sum, cl::NullRange,
+            cl::NDRange(m_particles));
+
+        q.enqueueNDRangeKernel(kernel_distances, cl::NullRange,
+            cl::NDRange(m_matrix_size));
+        q.enqueueReadBuffer(buf_valid, CL_TRUE, 0, sizeof(int), &m_valid);
+        q.enqueueReadBuffer(buf_t, CL_TRUE, 0, sizeof(double), &m_time);
+        };
+
+    g_submitQueue.pushOpenCL(job);
+    return sync;
 }

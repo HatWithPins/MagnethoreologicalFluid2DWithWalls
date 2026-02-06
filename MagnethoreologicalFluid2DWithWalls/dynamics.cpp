@@ -497,6 +497,9 @@ void SimulationVulkan(double field_direction, int phases, int particles, int dim
 	double r_min = 1 - log(100.0) / 10;
 
 	SimulationContext* simulationContext = new SimulationContext(particles, dimensions, length, field_direction, delta_t, mason, amplitude_relationship);
+	simulationContext->SetX(x_0);
+	simulationContext->SetY(y_0);
+	simulationContext->SetZ(z_0);
 
 	for (int phase = 0 + (phases - 1) * load_positions; phase < phases; phase++) {
 		max_time = max_times[phase];
@@ -523,10 +526,13 @@ void SimulationVulkan(double field_direction, int phases, int particles, int dim
 			if (current_lap > lap) {
 				counter++;
 				lap = current_lap;
+				get_x = simulationContext->ReturnX();
+				get_y = simulationContext->ReturnY();
+				get_z = simulationContext->ReturnZ();
 				if (keep_positions) {
-					box->SetX(x_0);
-					box->SetY(y_0);
-					box->SetZ(z_0);
+					box->SetX(get_x);
+					box->SetY(get_y);
+					box->SetZ(get_z);
 					box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 				}
 				analysis->PreAnalysis(x_0, y_0, z_0, time);
@@ -537,12 +543,15 @@ void SimulationVulkan(double field_direction, int phases, int particles, int dim
 				delta_t = simulationContext->ReturnDeltaT();
 				stretch += delta_t;
 
+				get_x = simulationContext->ReturnX();
+				get_y = simulationContext->ReturnY();
+				get_z = simulationContext->ReturnZ();
 				if (stretch > step) {
 					counter++;
 					if (keep_positions) {
-						box->SetX(x_0);
-						box->SetY(y_0);
-						box->SetZ(z_0);
+						box->SetX(get_x);
+						box->SetY(get_y);
+						box->SetZ(get_z);
 						box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 					}
 					analysis->PreAnalysis(x_0, y_0, z_0, time);
@@ -574,9 +583,12 @@ void SimulationVulkan(double field_direction, int phases, int particles, int dim
 	}
 
 	if (keep_positions) {
-		box->SetX(x_0);
-		box->SetY(y_0);
-		box->SetZ(z_0);
+		get_x = simulationContext->ReturnX();
+		get_y = simulationContext->ReturnY();
+		get_z = simulationContext->ReturnZ();
+		box->SetX(get_x);
+		box->SetY(get_y);
+		box->SetZ(get_z);
 		box->WritePositions(counter, mason, amplitude_relationship, repetition, tag);
 	}
 	analysis->WriteAnalysis(repetition, tag);
@@ -667,7 +679,8 @@ void SimulationOpenCL(double field_direction, int phases, int particles, int dim
 
 			double r_min = 1 - log(100.0) / 10;
 
-			SimulationContextOCL* simulationContext = new SimulationContextOCL(particles, dimensions, length, field_direction, delta_t, mason, amplitude_relationship);
+			SimulationContextOCL* simulationContext = new SimulationContextOCL(particles, dimensions, length, field_direction, mason, amplitude_relationship, delta_t);
+			simulationContext->setPositions(x_0, y_0, z_0);
 
 			for (int phase = 0 + (phases - 1) * load_positions; phase < phases; phase++) {
 				max_time = max_times[phase];
@@ -685,14 +698,19 @@ void SimulationOpenCL(double field_direction, int phases, int particles, int dim
 				}
 
 				while (!end_simulation) {
-					simulationContext->enqueueStep();
-					simulationContext->readValid(&valid);
-					simulationContext->readTime(&time);
+					auto sync = simulationContext->enqueueStep();
+					{
+						std::unique_lock<std::mutex> lock(*sync.mutex);
+						sync.cv->wait(lock, [&] { return *sync.finished; });
+					}
+					valid = simulationContext->readValid();
+					time = simulationContext->readTime();
 
 					current_lap = floor(time * frecuency / (2 * pi));
 					if (current_lap > lap) {
 						counter++;
 						lap = current_lap;
+						simulationContext->readPositions(x_0, y_0, z_0);
 						if (keep_positions) {
 							box->SetX(x_0);
 							box->SetY(y_0);
@@ -709,6 +727,7 @@ void SimulationOpenCL(double field_direction, int phases, int particles, int dim
 
 						if (stretch > step) {
 							counter++;
+							simulationContext->readPositions(x_0, y_0, z_0);
 							if (keep_positions) {
 								box->SetX(x_0);
 								box->SetY(y_0);
@@ -744,6 +763,7 @@ void SimulationOpenCL(double field_direction, int phases, int particles, int dim
 			}
 
 			if (keep_positions) {
+				simulationContext->readPositions(x_0, y_0, z_0);
 				box->SetX(x_0);
 				box->SetY(y_0);
 				box->SetZ(z_0);
